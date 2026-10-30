@@ -10,7 +10,6 @@ let currentLayer = null;
 let baseLayer = null;
 let deferredPrompt = null;
 
-// Sistema de alertas sísmicas
 let alertConfig = {
   minMagnitude: 4.5,
   maxDistance: 500,
@@ -21,8 +20,8 @@ let alertConfig = {
 let monitoredQuakeIds = new Set();
 let alertHistory = [];
 let countdownInterval = null;
+let sirenInterval = null;
 let audioContext = null;
-let alarmOscillator = null;
 
 // ==========================================
 // TOAST
@@ -36,70 +35,91 @@ function toast(msg, duration = 3000) {
 }
 
 // ==========================================
-// SISTEMA DE AUDIO PARA ALARMA
+// SIRENA DE EMERGENCIA REAL (Web Audio API)
+// Genera una sirena tipo Protección Civil con dos tonos alternados
 // ==========================================
 function initAudio() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
 }
 
-function playAlarmSound() {
+function playSiren() {
   if (!alertConfig.soundEnabled) return;
-  
   initAudio();
   
-  // Crear oscilador para tono de alarma
-  alarmOscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
+  const ctx = audioContext;
+  const now = ctx.currentTime;
   
-  alarmOscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
+  // Crear oscilador principal
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
   
-  alarmOscillator.type = 'square';
-  alarmOscillator.frequency.setValueAtTime(880, audioContext.currentTime); // La (A5)
+  osc.connect(gain);
+  gain.connect(ctx.destination);
   
-  // Patrón de alarma: beep-beep-beep
-  const now = audioContext.currentTime;
-  gainNode.gain.setValueAtTime(0.3, now);
-  gainNode.gain.setValueAtTime(0, now + 0.2);
-  gainNode.gain.setValueAtTime(0.3, now + 0.3);
-  gainNode.gain.setValueAtTime(0, now + 0.5);
-  gainNode.gain.setValueAtTime(0.3, now + 0.6);
-  gainNode.gain.setValueAtTime(0, now + 0.8);
+  osc.type = 'sine';
+  gain.gain.setValueAtTime(0.4, now);
   
-  alarmOscillator.start(now);
-  alarmOscillator.stop(now + 1);
+  // Patrón de sirena: sube y baja de tono (tipo alarma real)
+  // Ciclo de 2 segundos: 880Hz -> 440Hz -> 880Hz
+  const cycleDuration = 2;
+  const highFreq = 880;  // La5
+  const lowFreq = 440;   // La4
   
-  // Repetir alarma cada 2 segundos
-  setTimeout(() => {
-    if ($("#quake-alert-overlay") && !$("#quake-alert-overlay").classList.contains("hidden")) {
-      playAlarmSound();
-    }
-  }, 2000);
+  osc.frequency.setValueAtTime(lowFreq, now);
+  osc.frequency.linearRampToValueAtTime(highFreq, now + 0.5);
+  osc.frequency.linearRampToValueAtTime(lowFreq, now + 1);
+  osc.frequency.linearRampToValueAtTime(highFreq, now + 1.5);
+  osc.frequency.linearRampToValueAtTime(lowFreq, now + 2);
+  
+  osc.start(now);
+  osc.stop(now + cycleDuration);
+  
+  // Segundo oscilador para hacerla más intensa (tipo dos tonos)
+  const osc2 = ctx.createOscillator();
+  const gain2 = ctx.createGain();
+  osc2.connect(gain2);
+  gain2.connect(ctx.destination);
+  osc2.type = 'square';
+  gain2.gain.setValueAtTime(0.15, now);
+  
+  osc2.frequency.setValueAtTime(lowFreq * 1.5, now);
+  osc2.frequency.linearRampToValueAtTime(highFreq * 1.5, now + 0.5);
+  osc2.frequency.linearRampToValueAtTime(lowFreq * 1.5, now + 1);
+  osc2.frequency.linearRampToValueAtTime(highFreq * 1.5, now + 1.5);
+  osc2.frequency.linearRampToValueAtTime(lowFreq * 1.5, now + 2);
+  
+  osc2.start(now);
+  osc2.stop(now + cycleDuration);
 }
 
-function stopAlarmSound() {
-  if (alarmOscillator) {
-    try {
-      alarmOscillator.stop();
-    } catch(e) {}
-    alarmOscillator = null;
+function startSiren() {
+  if (!alertConfig.soundEnabled) return;
+  playSiren();
+  sirenInterval = setInterval(playSiren, 2000);
+}
+
+function stopSiren() {
+  if (sirenInterval) {
+    clearInterval(sirenInterval);
+    sirenInterval = null;
   }
 }
 
 // ==========================================
-// VIBRACIÓN DE EMERGENCIA
+// VIBRACIÓN
 // ==========================================
 function emergencyVibration() {
   if (!alertConfig.vibrationEnabled) return;
   if (!navigator.vibrate) return;
   
-  // Patrón SOS: corto-corto-corto-largo-largo-largo-corto-corto-corto
-  const sosPattern = [100, 100, 100, 100, 100, 100, 300, 100, 300, 100, 300, 100, 100, 100, 100, 100, 100, 100];
+  const sosPattern = [500, 200, 500, 200, 1000];
   navigator.vibrate(sosPattern);
   
-  // Repetir cada 3 segundos
   setTimeout(() => {
     if ($("#quake-alert-overlay") && !$("#quake-alert-overlay").classList.contains("hidden")) {
       emergencyVibration();
@@ -108,23 +128,15 @@ function emergencyVibration() {
 }
 
 function stopVibration() {
-  if (navigator.vibrate) {
-    navigator.vibrate(0);
-  }
+  if (navigator.vibrate) navigator.vibrate(0);
 }
 
 // ==========================================
-// CÁLCULO DE TIEMPO DE LLEGADA DE ONDAS
+// CÁLCULO DE TIEMPO DE LLEGADA
 // ==========================================
-function calculateArrivalTime(distanceKm, magnitude) {
-  // Velocidad aproximada de ondas P: 6 km/s
-  // Velocidad aproximada de ondas S: 3.5 km/s
-  // Usamos ondas S (más destructivas) para el cálculo
-  
-  const waveSpeed = 3.5; // km/s
-  const timeSeconds = distanceKm / waveSpeed;
-  
-  return Math.max(0, Math.round(timeSeconds));
+function calculateArrivalTime(distanceKm) {
+  const waveSpeed = 3.5; // km/s (ondas S)
+  return Math.max(0, Math.round(distanceKm / waveSpeed));
 }
 
 function formatCountdown(seconds) {
@@ -138,65 +150,72 @@ function formatCountdown(seconds) {
 // PANTALLA FLOTANTE DE ALERTA SÍSMICA
 // ==========================================
 function triggerQuakeAlert(quake) {
-  const [lon, lat] = quake.geometry.coordinates;
+  const [lon, lat, depth] = quake.geometry.coordinates;
   const distance = distanceKm(userLat, userLon, lat, lon);
-  const arrivalTime = calculateArrivalTime(distance, quake.properties.mag);
+  const arrivalTime = calculateArrivalTime(distance);
   
-  // Actualizar información en la pantalla
   $("#alert-magnitude").textContent = `M ${quake.properties.mag.toFixed(1)}`;
   $("#alert-location").textContent = quake.properties.place;
   $("#alert-distance").textContent = `${Math.round(distance)} km de distancia`;
+  $("#alert-depth").textContent = `Profundidad: ${depth ? depth.toFixed(1) : 'desconocida'} km`;
   
-  // Mostrar pantalla
   $("#quake-alert-overlay").classList.remove("hidden");
   
-  // Iniciar cuenta regresiva
   let remaining = arrivalTime;
   $("#alert-countdown").textContent = formatCountdown(remaining);
+  $("#countdown-sub").textContent = arrivalTime > 0 
+    ? `Ondas S destructivas en camino (${arrivalTime}s)` 
+    : "¡Las ondas sísmicas ya llegaron!";
   
   if (countdownInterval) clearInterval(countdownInterval);
   countdownInterval = setInterval(() => {
     remaining--;
     $("#alert-countdown").textContent = formatCountdown(remaining);
     
+    if (remaining <= 10 && remaining > 0) {
+      $("#countdown-sub").textContent = "⚠ ¡PREPÁRATE! Ondas llegando en segundos";
+      $("#alert-countdown").style.color = "#ff0000";
+    }
+    
     if (remaining <= 0) {
       clearInterval(countdownInterval);
       $("#alert-countdown").textContent = "00:00";
-      $("#countdown-sub").textContent = "Ondas sísmicas llegando";
+      $("#countdown-sub").textContent = "🔴 ONDAS SÍSMICAS PRESENTES";
     }
   }, 1000);
   
-  // Activar alarma sonora y vibración
-  playAlarmSound();
+  startSiren();
   emergencyVibration();
   
-  // Enviar notificación push
   if (Notification.permission === "granted") {
     new Notification("¡SISMO DETECTADO!", {
-      body: `M ${quake.properties.mag.toFixed(1)} - ${quake.properties.place}\n${Math.round(distance)} km de distancia`,
+      body: `M ${quake.properties.mag.toFixed(1)} - ${quake.properties.place}\n${Math.round(distance)} km`,
       icon: "icons/icon-192.svg",
       vibrate: [500, 200, 500],
       tag: "quake-alert"
     });
   }
   
-  // Agregar al historial
   addToAlertHistory(quake, distance);
-  
-  console.log("Alerta de sismo activada:", quake.properties.place);
+  console.log("Alerta activada:", quake.properties.place);
 }
 
 function closeQuakeAlert() {
   $("#quake-alert-overlay").classList.add("hidden");
   if (countdownInterval) clearInterval(countdownInterval);
-  stopAlarmSound();
+  stopSiren();
   stopVibration();
+  $("#alert-countdown").style.color = "var(--red)";
 }
 
 $("#btn-close-quake-alert").addEventListener("click", closeQuakeAlert);
+$("#btn-silence-alarm").addEventListener("click", () => {
+  stopSiren();
+  toast("Alarma silenciada");
+});
 
 // ==========================================
-// HISTORIAL DE ALERTAS
+// HISTORIAL
 // ==========================================
 function addToAlertHistory(quake, distance) {
   const alert = {
@@ -204,12 +223,12 @@ function addToAlertHistory(quake, distance) {
     magnitude: quake.properties.mag,
     place: quake.properties.place,
     distance: distance,
-    time: new Date(quake.properties.time),
+    time: new Date(quake.properties.time).toISOString(),
     timestamp: Date.now()
   };
   
   alertHistory.unshift(alert);
-  if (alertHistory.length > 50) alertHistory.pop(); // Mantener últimos 50
+  if (alertHistory.length > 50) alertHistory.pop();
   
   localStorage.setItem('ga_alert_history', JSON.stringify(alertHistory));
   renderAlertHistory();
@@ -232,7 +251,7 @@ function renderAlertHistory() {
       <div style="flex:1;min-width:0">
         <div class="item-title">M ${alert.magnitude.toFixed(1)} - ${alert.place}</div>
         <div class="item-meta">${Math.round(alert.distance)} km de distancia</div>
-        <div class="history-time">${alert.time.toLocaleString("es-ES")}</div>
+        <div class="history-time">${new Date(alert.time).toLocaleString("es-ES")}</div>
       </div>
       <span class="item-tag ${alert.magnitude >= 5 ? 'tag-high' : 'tag-med'}">Alerta</span>
     `;
@@ -248,7 +267,7 @@ $("#btn-clear-history").addEventListener("click", () => {
 });
 
 // ==========================================
-// MONITOREO DE SISMOS EN TIEMPO REAL
+// MONITOREO EN TIEMPO REAL
 // ==========================================
 async function monitorQuakes() {
   try {
@@ -259,31 +278,26 @@ async function monitorQuakes() {
     $("#last-check").textContent = new Date().toLocaleTimeString("es-ES");
     $("#monitored-quakes").textContent = data.features.length;
     
-    // Revisar cada sismo
+    let activeAlerts = 0;
+    
     data.features.forEach(quake => {
       const quakeId = quake.id;
-      
-      // Si ya fue monitoreado, saltar
       if (monitoredQuakeIds.has(quakeId)) return;
       
       const [lon, lat] = quake.geometry.coordinates;
       const distance = distanceKm(userLat, userLon, lat, lon);
       const magnitude = quake.properties.mag;
       
-      // Verificar si cumple los criterios de alerta
       if (magnitude >= alertConfig.minMagnitude && distance <= alertConfig.maxDistance) {
-        console.log(`Sismo detectado: M${magnitude.toFixed(1)} a ${Math.round(distance)} km`);
-        
-        // Marcar como monitoreado
         monitoredQuakeIds.add(quakeId);
-        
-        // Activar alerta
         triggerQuakeAlert(quake);
+        activeAlerts++;
       } else {
-        // Marcar como revisado (no alerta)
         monitoredQuakeIds.add(quakeId);
       }
     });
+    
+    $("#active-alerts").textContent = activeAlerts;
     
   } catch (e) {
     console.error("Error en monitoreo:", e);
@@ -291,7 +305,7 @@ async function monitorQuakes() {
 }
 
 // ==========================================
-// PESTAÑAS + FIX DEL MAPA
+// PESTAÑAS + MAPA FIX
 // ==========================================
 $$(".tab").forEach(tab => {
   tab.addEventListener("click", () => {
@@ -302,14 +316,9 @@ $$(".tab").forEach(tab => {
     if (target) target.classList.add("active");
     
     if (tab.dataset.tab === "mapa" && map) {
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 200);
+      setTimeout(() => map.invalidateSize(), 200);
     }
-    
-    if (tab.dataset.tab === "historial") {
-      renderAlertHistory();
-    }
+    if (tab.dataset.tab === "historial") renderAlertHistory();
   });
 });
 
@@ -318,7 +327,7 @@ $$(".tab").forEach(tab => {
 // ==========================================
 const mapLayers = {
   osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
+    attribution: '&copy; OpenStreetMap',
     maxZoom: 19
   }),
   satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -326,7 +335,7 @@ const mapLayers = {
     maxZoom: 18
   }),
   dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    attribution: '&copy; CARTO',
     subdomains: 'abcd',
     maxZoom: 19
   })
@@ -345,27 +354,35 @@ function initMap() {
       maxZoom: 19
     });
     
-    baseLayer = mapLayers.osm;
+    baseLayer = mapLayers.dark;
     baseLayer.addTo(map);
     
     setTimeout(() => map.invalidateSize(), 300);
     loadMapLayer("quakes");
     
   } catch (e) {
-    console.error("Error al inicializar mapa:", e);
+    console.error("Error mapa:", e);
     toast("Error al cargar el mapa");
   }
 }
 
 function changeMapType(type) {
   if (!map || !mapLayers[type]) return;
-  
   if (baseLayer) map.removeLayer(baseLayer);
   baseLayer = mapLayers[type];
   baseLayer.addTo(map);
-  
   if (currentLayer) currentLayer.bringToFront();
-  toast(`Mapa: ${type === 'osm' ? 'OpenStreetMap' : type === 'satellite' ? 'Satélite' : 'Modo Oscuro'}`);
+  toast(`Mapa: ${type === 'osm' ? 'Estándar' : type === 'satellite' ? 'Satélite' : 'Oscuro'}`);
+}
+
+// Función auxiliar para crear etiqueta de magnitud
+function createMagnitudeLabel(mag, color) {
+  return L.divIcon({
+    className: 'magnitude-label-container',
+    html: `<div class="magnitude-label" style="color:${color};border-color:${color}">M${mag.toFixed(1)}</div>`,
+    iconSize: [50, 20],
+    iconAnchor: [25, 10]
+  });
 }
 
 async function loadMapLayer(type) {
@@ -387,33 +404,46 @@ async function loadMapLayer(type) {
           const mag = f.properties.mag;
           const color = mag >= 6 ? "#f85149" : mag >= 4.5 ? "#d29922" : "#3fb950";
           return L.circleMarker(latlng, { 
-            radius: Math.max(6, mag * 4), 
+            radius: Math.max(8, mag * 5), 
             color: color,
             fillColor: color, 
-            fillOpacity: 0.7, 
-            weight: 2,
-            opacity: 0.9
+            fillOpacity: 0.6, 
+            weight: 2
           });
         },
         onEachFeature: (f, layer) => {
           const p = f.properties;
           const time = new Date(p.time).toLocaleString("es-ES");
+          const depth = f.geometry.coordinates[2];
           layer.bindPopup(`
-            <strong>Magnitud: ${p.mag.toFixed(1)}</strong><br>
+            <strong style="color:#f85149;font-size:16px">M ${p.mag.toFixed(1)}</strong><br>
             <strong>${p.place}</strong><br>
-            <small>${time}</small><br>
-            <a href="${p.url}" target="_blank" style="color:#58a6ff;text-decoration:none;">Ver detalles →</a>
+            <small>📅 ${time}</small><br>
+            <small>📏 Profundidad: ${depth ? depth.toFixed(1) : '?'} km</small><br>
+            <a href="${p.url}" target="_blank" style="color:#58a6ff">Ver detalles →</a>
           `);
         }
       }).addTo(map);
       
+      // Agregar etiquetas de magnitud para sismos fuertes (M4.5+)
+      d.features.filter(f => f.properties.mag >= 4.5).forEach(f => {
+        const [lon, lat] = f.geometry.coordinates;
+        const mag = f.properties.mag;
+        const color = mag >= 6 ? "#f85149" : "#d29922";
+        L.marker([lat, lon], {
+          icon: createMagnitudeLabel(mag, color),
+          interactive: false
+        }).addTo(map);
+      });
+      
       $("#map-legend").innerHTML = `
         <div class="legend-item"><span class="legend-dot" style="background:#3fb950"></span>M 2.5-4.5</div>
         <div class="legend-item"><span class="legend-dot" style="background:#d29922"></span>M 4.5-6.0</div>
-        <div class="legend-item"><span class="legend-dot" style="background:#f85149"></span>M 6.0+</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#f85149"></span>M 6.0+ (con etiqueta)</div>
       `;
       
-    } else {
+    } else if (type === "hurricanes") {
+      // Huracanes: NASA EONET storms + NOAA
       const r = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=50");
       if (!r.ok) throw new Error("HTTP " + r.status);
       const d = await r.json();
@@ -422,45 +452,169 @@ async function loadMapLayer(type) {
       d.events.forEach(ev => {
         const cat = ev.categories[0];
         if (!cat) return;
-        if (type === "fires" && cat.id !== 8) return;
-        if (type === "storms" && cat.id !== 10 && cat.id !== 9) return;
-        if (type === "volcanoes" && cat.id !== 12) return;
+        // ID 10 = tropical cyclone, ID 9 = severe storm
+        if (cat.id !== 10 && cat.id !== 9) return;
         const geom = ev.geometry.find(g => g.coordinates);
         if (!geom) return;
         features.push({
-          type: "Feature", 
+          type: "Feature",
           geometry: { type: "Point", coordinates: geom.coordinates },
-          properties: { title: ev.title, category: cat.title, id: cat.id }
+          properties: { title: ev.title, category: cat.title, date: geom.date }
         });
       });
 
       currentLayer = L.geoJSON(features, {
         pointToLayer: (f, latlng) => {
-          const colors = { 8: "#db6d28", 9: "#58a6ff", 10: "#bc8cff", 12: "#f85149" };
-          const color = colors[f.properties.id] || "#58a6ff";
-          return L.circleMarker(latlng, { 
-            radius: 10, 
-            color: color, 
-            fillColor: color, 
-            fillOpacity: 0.8, 
-            weight: 2 
+          return L.circleMarker(latlng, {
+            radius: 18,
+            color: "#bc8cff",
+            fillColor: "#bc8cff",
+            fillOpacity: 0.4,
+            weight: 3,
+            dashArray: '5, 5'
           });
         },
         onEachFeature: (f, layer) => {
           layer.bindPopup(`
-            <strong>${f.properties.title}</strong><br>
+            <strong style="color:#bc8cff">🌀 ${f.properties.title}</strong><br>
+            <small>${f.properties.category}</small><br>
+            <small>${new Date(f.properties.date).toLocaleDateString("es-ES")}</small>
+          `);
+        }
+      }).addTo(map);
+      
+      $("#map-legend").innerHTML = `
+        <div class="legend-item"><span class="legend-dot" style="background:#bc8cff"></span>Huracanes y Tormentas Tropicales</div>
+      `;
+      
+    } else if (type === "fires") {
+      // Incendios: NASA FIRMS via EONET
+      const r = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=100");
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      const features = [];
+      
+      d.events.forEach(ev => {
+        const cat = ev.categories[0];
+        if (!cat || cat.id !== 8) return;
+        const geom = ev.geometry.find(g => g.coordinates);
+        if (!geom) return;
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: geom.coordinates },
+          properties: { title: ev.title, category: cat.title, date: geom.date }
+        });
+      });
+
+      currentLayer = L.geoJSON(features, {
+        pointToLayer: (f, latlng) => {
+          return L.circleMarker(latlng, {
+            radius: 10,
+            color: "#db6d28",
+            fillColor: "#ff6b35",
+            fillOpacity: 0.8,
+            weight: 2
+          });
+        },
+        onEachFeature: (f, layer) => {
+          layer.bindPopup(`
+            <strong style="color:#ff6b35">🔥 ${f.properties.title}</strong><br>
+            <small>${f.properties.category}</small><br>
+            <small>${new Date(f.properties.date).toLocaleDateString("es-ES")}</small>
+          `);
+        }
+      }).addTo(map);
+      
+      $("#map-legend").innerHTML = `
+        <div class="legend-item"><span class="legend-dot" style="background:#ff6b35"></span>Incendios activos (NASA FIRMS)</div>
+      `;
+      
+    } else if (type === "volcanoes") {
+      // Volcanes: USGS + EONET
+      const r = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=50");
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      const features = [];
+      
+      d.events.forEach(ev => {
+        const cat = ev.categories[0];
+        if (!cat || cat.id !== 12) return;
+        const geom = ev.geometry.find(g => g.coordinates);
+        if (!geom) return;
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: geom.coordinates },
+          properties: { title: ev.title, category: cat.title, date: geom.date }
+        });
+      });
+
+      currentLayer = L.geoJSON(features, {
+        pointToLayer: (f, latlng) => {
+          return L.circleMarker(latlng, {
+            radius: 14,
+            color: "#f85149",
+            fillColor: "#f85149",
+            fillOpacity: 0.7,
+            weight: 3
+          });
+        },
+        onEachFeature: (f, layer) => {
+          layer.bindPopup(`
+            <strong style="color:#f85149">🌋 ${f.properties.title}</strong><br>
+            <small>${f.properties.category}</small><br>
+            <small>${new Date(f.properties.date).toLocaleDateString("es-ES")}</small>
+          `);
+        }
+      }).addTo(map);
+      
+      $("#map-legend").innerHTML = `
+        <div class="legend-item"><span class="legend-dot" style="background:#f85149"></span>Volcanes activos</div>
+      `;
+      
+    } else if (type === "storms") {
+      // Tormentas severas
+      const r = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=50");
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const d = await r.json();
+      const features = [];
+      
+      d.events.forEach(ev => {
+        const cat = ev.categories[0];
+        if (!cat || (cat.id !== 9 && cat.id !== 10)) return;
+        const geom = ev.geometry.find(g => g.coordinates);
+        if (!geom) return;
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: geom.coordinates },
+          properties: { title: ev.title, category: cat.title, date: geom.date }
+        });
+      });
+
+      currentLayer = L.geoJSON(features, {
+        pointToLayer: (f, latlng) => {
+          return L.circleMarker(latlng, {
+            radius: 12,
+            color: "#58a6ff",
+            fillColor: "#58a6ff",
+            fillOpacity: 0.6,
+            weight: 2
+          });
+        },
+        onEachFeature: (f, layer) => {
+          layer.bindPopup(`
+            <strong style="color:#58a6ff">⛈️ ${f.properties.title}</strong><br>
             <small>${f.properties.category}</small>
           `);
         }
       }).addTo(map);
       
-      const names = { fires: "Incendios", storms: "Tormentas", volcanoes: "Volcanes" };
-      const colors = { fires: '#db6d28', storms: '#bc8cff', volcanoes: '#f85149' };
-      $("#map-legend").innerHTML = `<div class="legend-item"><span class="legend-dot" style="background:${colors[type] || '#58a6ff'}"></span>${names[type] || 'Eventos'}</div>`;
+      $("#map-legend").innerHTML = `
+        <div class="legend-item"><span class="legend-dot" style="background:#58a6ff"></span>Tormentas severas</div>
+      `;
     }
     
   } catch (e) {
-    console.error("Error al cargar capa:", e);
+    console.error("Error capa:", e);
     toast("Error al cargar datos del mapa");
   }
 }
@@ -479,7 +633,7 @@ async function loadDashboard() {
         const wd = await w.json();
         $("#d-temp").textContent = `${Math.round(wd.current.temperature_2m)}°C`;
       }
-    } catch(e) { console.warn("Weather error", e); }
+    } catch(e) {}
 
     try {
       const aqi = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${userLat}&longitude=${userLon}&current=pm2_5`);
@@ -489,7 +643,7 @@ async function loadDashboard() {
         $("#d-aqi").textContent = pm !== undefined ? pm.toFixed(0) : "--";
         $("#d-aqi-label").textContent = pm > 35 ? "Insalubre" : pm > 15 ? "Moderado" : "Bueno";
       }
-    } catch(e) { console.warn("AQI error", e); }
+    } catch(e) {}
 
     try {
       const q = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson");
@@ -497,7 +651,7 @@ async function loadDashboard() {
         const qd = await q.json();
         $("#d-quakes").textContent = qd.metadata.count || 0;
       }
-    } catch(e) { console.warn("Quakes error", e); }
+    } catch(e) {}
 
     try {
       const ev = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=1");
@@ -505,7 +659,7 @@ async function loadDashboard() {
         const evd = await ev.json();
         $("#d-events").textContent = evd.events ? evd.events.length : 0;
       }
-    } catch(e) { console.warn("Events error", e); }
+    } catch(e) {}
 
     try {
       const q24 = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson");
@@ -537,7 +691,7 @@ async function loadDashboard() {
           });
         }
       }
-    } catch(e) { console.warn("Nearby error", e); }
+    } catch(e) {}
 
   } catch (e) {
     console.error("Dashboard error", e);
@@ -600,9 +754,7 @@ function triggerEmergency(message, details) {
   if (details) $("#emergency-details").innerHTML = details;
   overlay.classList.remove("hidden");
   
-  if (navigator.vibrate) {
-    navigator.vibrate([500, 200, 500, 200, 1000]);
-  }
+  if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]);
 }
 
 $("#btn-exit-emergency").addEventListener("click", () => {
@@ -626,7 +778,7 @@ $("#btn-test-notif").addEventListener("click", () => {
       });
       toast("Notificación enviada");
     } else {
-      toast("Permiso de notificaciones denegado");
+      toast("Permiso denegado");
     }
   });
 });
@@ -634,12 +786,11 @@ $("#btn-test-notif").addEventListener("click", () => {
 $("#btn-test-emergency").addEventListener("click", () => {
   triggerEmergency(
     "PRUEBA DE SISTEMA DE EMERGENCIA", 
-    "<p>El sistema de alerta temprana está funcionando correctamente.</p><p>La vibración y la interfaz de pantalla completa se han activado para simular un sismo o desastre inminente.</p>"
+    "<p>El sistema de alerta temprana está funcionando correctamente.</p><p>La vibración y la interfaz de pantalla completa se han activado.</p>"
   );
 });
 
 $("#btn-test-quake-alert").addEventListener("click", () => {
-  // Simular un sismo de prueba
   const testQuake = {
     id: "test-" + Date.now(),
     geometry: {
@@ -654,6 +805,16 @@ $("#btn-test-quake-alert").addEventListener("click", () => {
   triggerQuakeAlert(testQuake);
 });
 
+$("#btn-test-siren").addEventListener("click", () => {
+  if (alertConfig.soundEnabled) {
+    startSiren();
+    toast("Sirena activada (5 segundos)");
+    setTimeout(stopSiren, 5000);
+  } else {
+    toast("Activa el sonido en configuración");
+  }
+});
+
 $("#btn-test-map").addEventListener("click", () => {
   toast("Recargando mapa...");
   if (map) {
@@ -665,7 +826,7 @@ $("#btn-test-map").addEventListener("click", () => {
 });
 
 // ==========================================
-// CONFIGURACIÓN DE ALERTAS
+// CONFIGURACIÓN
 // ==========================================
 function loadAlertConfig() {
   const saved = localStorage.getItem('ga_alert_config');
@@ -688,9 +849,6 @@ $("#btn-save-alert-config").addEventListener("click", () => {
   toast("Configuración de alertas guardada");
 });
 
-// ==========================================
-// CONFIGURACIÓN GENERAL
-// ==========================================
 function loadSettings() {
   const savedCountry = localStorage.getItem('ga_country') || 'Mexico';
   const cfgCountry = $("#cfg-country");
@@ -711,7 +869,7 @@ $("#btn-save-config").addEventListener("click", () => {
 });
 
 // ==========================================
-// PWA INSTALL
+// PWA
 // ==========================================
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
@@ -730,7 +888,7 @@ $("#btn-install").addEventListener("click", async () => {
 });
 
 // ==========================================
-// EVENTOS DE BOTONES
+// EVENTOS
 // ==========================================
 $$(".map-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -751,33 +909,24 @@ $$(".map-type-btn").forEach(btn => {
 $("#country-filter").addEventListener("change", (e) => loadZoneData(e.target.value));
 
 // ==========================================
-// INICIALIZACIÓN
+// INIT
 // ==========================================
 async function init() {
-  console.log("=== Iniciando GlobalAlerts Pro ===");
+  console.log("=== GlobalAlerts Pro ===");
   
-  // Cargar configuraciones guardadas
   loadAlertConfig();
   loadSettings();
   
-  // Cargar historial
   const savedHistory = localStorage.getItem('ga_alert_history');
-  if (savedHistory) {
-    alertHistory = JSON.parse(savedHistory);
-  }
+  if (savedHistory) alertHistory = JSON.parse(savedHistory);
   
-  // Inicializar mapa
   initMap();
-  
-  // Cargar datos iniciales
   await loadDashboard();
   loadZoneData("Mexico");
   renderAlertHistory();
   
   toast("Sistema de monitoreo activado");
-  console.log("Monitoreo de sismos iniciado");
 
-  // Obtener ubicación real
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -797,12 +946,10 @@ async function init() {
         
         if (map) {
           map.setView([userLat, userLon], 6);
-          
           const userIcon = L.divIcon({
             className: "user-marker",
-            html: '<div class="user-marker-core"></div>',
-            iconSize: [20, 20], 
-            iconAnchor: [10, 10]
+            html: '<div style="width:16px;height:16px;background:#58a6ff;border:3px solid white;border-radius:50%;box-shadow:0 0 12px rgba(88,166,255,0.8);"></div>',
+            iconSize: [22, 22], iconAnchor: [11, 11]
           });
           L.marker([userLat, userLon], { icon: userIcon })
             .addTo(map)
@@ -810,25 +957,20 @@ async function init() {
         }
         
         await loadDashboard();
-        console.log("Ubicación real:", userCity);
       },
       (err) => {
-        console.warn("Geolocalización no disponible:", err.message);
+        console.warn("Geoloc error:", err.message);
         $("#status").textContent = `${userCity} (predeterminada)`;
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
     );
   }
   
-  // Iniciar monitoreo de sismos cada 30 segundos
   monitorQuakes();
   setInterval(monitorQuakes, 30000);
   
-  // Solicitar permiso de notificaciones
   if ("Notification" in window && Notification.permission === "default") {
-    setTimeout(() => {
-      Notification.requestPermission();
-    }, 3000);
+    setTimeout(() => Notification.requestPermission(), 3000);
   }
 }
 
@@ -838,7 +980,6 @@ if (document.readyState === "loading") {
   init();
 }
 
-// Auto-refresh cada 5 minutos
 setInterval(() => {
   loadDashboard();
   if ($(".tab.active") && $(".tab.active").dataset.tab === "zonas") {
