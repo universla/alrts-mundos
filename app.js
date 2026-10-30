@@ -1,13 +1,13 @@
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
-// Ubicación por defecto (Ciudad de México) - SIEMPRE carga datos
 let userLat = 19.4326;
 let userLon = -99.1332;
 let userCity = "Ciudad de México";
 
 let map = null;
 let currentLayer = null;
+let baseLayer = null;
 let deferredPrompt = null;
 
 // ==========================================
@@ -32,67 +32,150 @@ $$(".tab").forEach(tab => {
     const target = $(`#${tab.dataset.tab}`);
     if (target) target.classList.add("active");
     
+    // CRÍTICO: Forzar recálculo del tamaño del mapa
     if (tab.dataset.tab === "mapa" && map) {
-      setTimeout(() => map.invalidateSize(), 150);
+      setTimeout(() => {
+        map.invalidateSize();
+        console.log("Mapa redimensionado");
+      }, 200);
     }
   });
 });
 
 // ==========================================
-// MAPA
+// CAPAS DE MAPA DISPONIBLES
+// ==========================================
+const mapLayers = {
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri',
+    maxZoom: 18
+  }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19
+  })
+};
+
+// ==========================================
+// INICIALIZAR MAPA
 // ==========================================
 function initMap() {
-  if (map) return;
+  if (map) {
+    console.log("Mapa ya inicializado");
+    return;
+  }
 
   try {
+    // Crear mapa
     map = L.map("map", { 
       zoomControl: true, 
       worldCopyJump: true,
       center: [20, 0],
-      zoom: 2
+      zoom: 2,
+      minZoom: 2,
+      maxZoom: 19
     });
     
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      subdomains: 'abcd', 
-      maxZoom: 19
-    }).addTo(map);
-
-    // Forzar renderizado
-    setTimeout(() => map.invalidateSize(), 300);
+    // Agregar capa base (OpenStreetMap por defecto)
+    baseLayer = mapLayers.osm;
+    baseLayer.addTo(map);
     
+    console.log("Mapa inicializado con OpenStreetMap");
+    
+    // Forzar renderizado después de un momento
+    setTimeout(() => {
+      map.invalidateSize();
+      console.log("Mapa renderizado correctamente");
+    }, 300);
+    
+    // Cargar datos iniciales
     loadMapLayer("quakes");
-    console.log("Mapa inicializado correctamente");
+    
   } catch (e) {
     console.error("Error al inicializar mapa:", e);
     toast("Error al cargar el mapa");
   }
 }
 
-async function loadMapLayer(type) {
-  if (!map) return;
+// ==========================================
+// CAMBIAR TIPO DE MAPA
+// ==========================================
+function changeMapType(type) {
+  if (!map || !mapLayers[type]) return;
+  
+  // Remover capa base actual
+  if (baseLayer) {
+    map.removeLayer(baseLayer);
+  }
+  
+  // Agregar nueva capa base
+  baseLayer = mapLayers[type];
+  baseLayer.addTo(map);
+  
+  // Mover capa de datos al frente
   if (currentLayer) {
-    try { map.removeLayer(currentLayer); } catch(e) {}
+    currentLayer.bringToFront();
+  }
+  
+  console.log(`Tipo de mapa cambiado a: ${type}`);
+  toast(`Mapa: ${type === 'osm' ? 'OpenStreetMap' : type === 'satellite' ? 'Satélite' : 'Modo Oscuro'}`);
+}
+
+// ==========================================
+// CARGAR CAPA DE DATOS (Sismos, Eventos, etc.)
+// ==========================================
+async function loadMapLayer(type) {
+  if (!map) {
+    console.error("Mapa no inicializado");
+    return;
+  }
+  
+  // Remover capa anterior
+  if (currentLayer) {
+    try { 
+      map.removeLayer(currentLayer); 
+    } catch(e) {
+      console.warn("Error al remover capa:", e);
+    }
+    currentLayer = null;
   }
 
   try {
     if (type === "quakes") {
+      console.log("Cargando sismos...");
       const r = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson");
       if (!r.ok) throw new Error("HTTP " + r.status);
       const d = await r.json();
+      
+      console.log(`Sismos cargados: ${d.features.length}`);
       
       currentLayer = L.geoJSON(d, {
         pointToLayer: (f, latlng) => {
           const mag = f.properties.mag;
           const color = mag >= 6 ? "#f85149" : mag >= 4.5 ? "#d29922" : "#3fb950";
           return L.circleMarker(latlng, { 
-            radius: Math.max(5, mag * 3), 
-            color, fillColor: color, fillOpacity: 0.6, weight: 2 
+            radius: Math.max(6, mag * 4), 
+            color: color,
+            fillColor: color, 
+            fillOpacity: 0.7, 
+            weight: 2,
+            opacity: 0.9
           });
         },
         onEachFeature: (f, layer) => {
           const p = f.properties;
-          layer.bindPopup(`<strong>M ${p.mag.toFixed(1)}</strong><br>${p.place}<br><small>${new Date(p.time).toLocaleString("es-ES")}</small>`);
+          const time = new Date(p.time).toLocaleString("es-ES");
+          layer.bindPopup(`
+            <strong>Magnitud: ${p.mag.toFixed(1)}</strong><br>
+            <strong>${p.place}</strong><br>
+            <small> ${time}</small><br>
+            <a href="${p.url}" target="_blank" style="color:#58a6ff;text-decoration:none;">Ver detalles →</a>
+          `);
         }
       }).addTo(map);
       
@@ -101,7 +184,9 @@ async function loadMapLayer(type) {
         <div class="legend-item"><span class="legend-dot" style="background:#d29922"></span>M 4.5-6.0</div>
         <div class="legend-item"><span class="legend-dot" style="background:#f85149"></span>M 6.0+</div>
       `;
+      
     } else {
+      console.log(`Cargando eventos: ${type}`);
       const r = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=50");
       if (!r.ok) throw new Error("HTTP " + r.status);
       const d = await r.json();
@@ -122,14 +207,25 @@ async function loadMapLayer(type) {
         });
       });
 
+      console.log(`Eventos cargados: ${features.length}`);
+
       currentLayer = L.geoJSON(features, {
         pointToLayer: (f, latlng) => {
           const colors = { 8: "#db6d28", 9: "#58a6ff", 10: "#bc8cff", 12: "#f85149" };
           const color = colors[f.properties.id] || "#58a6ff";
-          return L.circleMarker(latlng, { radius: 8, color, fillColor: color, fillOpacity: 0.7, weight: 2 });
+          return L.circleMarker(latlng, { 
+            radius: 10, 
+            color: color, 
+            fillColor: color, 
+            fillOpacity: 0.8, 
+            weight: 2 
+          });
         },
         onEachFeature: (f, layer) => {
-          layer.bindPopup(`<strong>${f.properties.title}</strong><br><small>${f.properties.category}</small>`);
+          layer.bindPopup(`
+            <strong>${f.properties.title}</strong><br>
+            <small>${f.properties.category}</small>
+          `);
         }
       }).addTo(map);
       
@@ -137,8 +233,11 @@ async function loadMapLayer(type) {
       const colors = { fires: '#db6d28', storms: '#bc8cff', volcanoes: '#f85149' };
       $("#map-legend").innerHTML = `<div class="legend-item"><span class="legend-dot" style="background:${colors[type] || '#58a6ff'}"></span>${names[type] || 'Eventos'}</div>`;
     }
+    
+    console.log("Capa de datos cargada correctamente");
+    
   } catch (e) {
-    console.error("Error capa mapa:", e);
+    console.error("Error al cargar capa:", e);
     toast("Error al cargar datos del mapa");
   }
 }
@@ -376,7 +475,7 @@ $("#btn-install").addEventListener("click", async () => {
 });
 
 // ==========================================
-// BOTONES DEL MAPA
+// EVENTOS DE BOTONES DEL MAPA
 // ==========================================
 $$(".map-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -386,25 +485,34 @@ $$(".map-btn").forEach(btn => {
   });
 });
 
+$$(".map-type-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    $$(".map-type-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    changeMapType(btn.dataset.type);
+  });
+});
+
 $("#country-filter").addEventListener("change", (e) => loadZoneData(e.target.value));
 
 // ==========================================
-// INICIALIZACIÓN - CARGA INMEDIATA
+// INICIALIZACIÓN
 // ==========================================
 async function init() {
-  console.log("Iniciando GlobalAlerts...");
+  console.log("=== Iniciando GlobalAlerts ===");
   
-  // 1. Inicializar mapa inmediatamente
+  // 1. Inicializar mapa
   initMap();
   
-  // 2. Cargar datos inmediatamente con ubicación por defecto
+  // 2. Cargar datos inmediatamente
   await loadDashboard();
   loadZoneData("Mexico");
   loadSettings();
   
-  toast("Datos cargados correctamente");
+  toast("Sistema cargado correctamente");
+  console.log("Datos iniciales cargados");
 
-  // 3. Intentar obtener ubicación real (sin bloquear la app)
+  // 3. Intentar obtener ubicación real
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -424,12 +532,17 @@ async function init() {
         
         if (map) {
           map.setView([userLat, userLon], 6);
+          
+          // Marcador de usuario
           const userIcon = L.divIcon({
             className: "user-marker",
-            html: '<div style="width:14px;height:14px;background:#58a6ff;border:3px solid white;border-radius:50%;box-shadow:0 0 8px rgba(88,166,255,0.8);"></div>',
-            iconSize: [20, 20], iconAnchor: [10, 10]
+            html: '<div class="user-marker-core"></div>',
+            iconSize: [20, 20], 
+            iconAnchor: [10, 10]
           });
-          L.marker([userLat, userLon], { icon: userIcon }).addTo(map).bindPopup(`<strong>${userCity}</strong>`);
+          L.marker([userLat, userLon], { icon: userIcon })
+            .addTo(map)
+            .bindPopup(`<strong>📍 ${userCity}</strong>`);
         }
         
         // Recargar datos con ubicación real
@@ -445,7 +558,7 @@ async function init() {
   }
 }
 
-// Ejecutar init cuando el DOM esté listo
+// Ejecutar init
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", init);
 } else {
