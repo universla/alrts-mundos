@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GlobalAlerts — Clima, Sismos y Eventos Naturales</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-mark"></span>
+      <h1>GlobalAlerts</h1>
+    </div>
+    <nav>
+      <a href="#clima">Clima</a>
+      <a href="#sismos">Sismos</a>
+      <a href="#eventos">Eventos</a>
+    </nav>
+    <div class="status" id="status">Cargando ubicación...</div>
+  </header>
+
+  <main>
+    <!-- CLIMA -->
+    <section id="clima" class="panel">
+      <header class="panel-header">
+        <h2>Clima actual</h2>
+        <span class="badge" id="clima-badge">—</span>
+      </header>
+      <div class="grid-2">
+        <div class="stat">
+          <span class="label">Temperatura</span>
+          <strong id="temp">—</strong>
+        </div>
+        <div class="stat">
+          <span class="label">Sensación térmica</span>
+          <strong id="feels">—</strong>
+        </div>
+        <div class="stat">
+          <span class="label">Viento</span>
+          <strong id="wind">—</strong>
+        </div>
+        <div class="stat">
+          <span class="label">Humedad</span>
+          <strong id="humidity">—</strong>
+        </div>
+      </div>
+      <p class="meta" id="clima-location">Detectando ubicación...</p>
+    </section>
+
+    <!-- SISMOS -->
+    <section id="sismos" class="panel">
+      <header class="panel-header">
+        <h2>Sismos recientes (últimas 24h)</h2>
+        <span class="badge" id="sismos-badge">—</span>
+      </header>
+      <ul class="list" id="sismos-list">
+        <li class="skeleton"></li>
+        <li class="skeleton"></li>
+        <li class="skeleton"></li>
+      </ul>
+    </section>
+
+    <!-- EVENTOS NASA -->
+    <section id="eventos" class="panel">
+      <header class="panel-header">
+        <h2>Eventos naturales activos</h2>
+        <span class="badge" id="eventos-badge">—</span>
+      </header>
+      <ul class="list" id="eventos-list">
+        <li class="skeleton"></li>
+        <li class="skeleton"></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>Datos: USGS · Open-Meteo · NASA EONET — Actualización automática cada 5 min</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
