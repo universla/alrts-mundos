@@ -34,7 +34,7 @@ html, body {
 
 .hidden { display: none !important; }
 
-/* TOPBAR */
+/* ===== TOPBAR ===== */
 .topbar {
   position: sticky;
   top: 0;
@@ -100,7 +100,7 @@ html, body {
   white-space: nowrap;
 }
 
-/* TABS */
+/* ===== TABS ===== */
 .tabs {
   display: flex;
   gap: 4px;
@@ -131,7 +131,7 @@ html, body {
   border-color: var(--accent);
 }
 
-/* MAIN */
+/* ===== MAIN ===== */
 main {
   max-width: 1200px;
   margin: 0 auto;
@@ -144,7 +144,7 @@ main {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* CARDS */
+/* ===== CARDS ===== */
 .card {
   background: var(--bg-2);
   border: 1px solid var(--border);
@@ -185,7 +185,7 @@ main {
   cursor: pointer;
 }
 
-/* STATS GRID */
+/* ===== STATS GRID ===== */
 .grid-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -240,7 +240,7 @@ main {
   color: var(--text);
 }
 
-/* LISTS */
+/* ===== LISTS ===== */
 .list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .list li {
   display: flex;
@@ -272,7 +272,7 @@ main {
 .tag-critical { background: rgba(248,81,73,0.25); color: var(--red); border: 1px solid var(--red); animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 
-/* FORECAST */
+/* ===== FORECAST ===== */
 .forecast {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -291,7 +291,7 @@ main {
 .forecast-day .temp { font-size: 18px; font-weight: 700; margin: 8px 0 4px; color: var(--accent); }
 .forecast-day .desc { font-size: 10px; color: var(--text-muted); }
 
-/* MAP */
+/* ===== MAP ===== */
 .map-card { padding: 0; overflow: hidden; }
 .map-controls {
   display: flex;
@@ -335,7 +335,7 @@ main {
 .legend-item { display: flex; align-items: center; gap: 6px; }
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
 
-/* LEAFLET DARK OVERRIDES */
+/* ===== LEAFLET DARK OVERRIDES ===== */
 .leaflet-container { background: #0d1117; font-family: inherit; }
 .leaflet-control-zoom a {
   background: var(--bg-2) !important;
@@ -355,8 +355,10 @@ main {
   border-radius: 8px;
 }
 .leaflet-popup-tip { background: var(--bg-2); }
+.leaflet-popup-content { margin: 10px 14px; font-size: 12px; line-height: 1.5; }
+.leaflet-popup-content strong { color: var(--accent); }
 
-/* TOAST */
+/* ===== TOAST ===== */
 .toast {
   position: fixed;
   bottom: 24px;
@@ -373,6 +375,7 @@ main {
   opacity: 0;
   transition: all 0.3s;
   max-width: 90%;
+  pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -388,19 +391,7 @@ footer {
 }
 footer p { margin: 2px 0; }
 
-/* MOBILE */
-@media (max-width: 640px) {
-  .topbar { padding: 10px 14px; gap: 10px; }
-  .brand h1 { font-size: 15px; }
-  .status { font-size: 10px; padding: 4px 8px; }
-  main { padding: 12px; }
-  .card { padding: 16px; }
-  .stat-value { font-size: 22px; }
-  .forecast { grid-template-columns: repeat(7, minmax(70px, 1fr)); }
-  #map, .mini-map { height: 400px; }
-}
-
-/* SKELETON */
+/* ===== SKELETON LOADING ===== */
 .skeleton {
   height: 48px;
   background: linear-gradient(90deg, var(--bg) 0%, var(--border) 50%, var(--bg) 100%);
@@ -411,4 +402,66 @@ footer p { margin: 2px 0; }
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+  .topbar { padding: 10px 14px; gap: 10px; }
+  .brand h1 { font-size: 15px; }
+  .version { font-size: 9px; padding: 2px 5px; }
+  .status { font-size: 10px; padding: 4px 8px; }
+  main { padding: 12px; }
+  .card { padding: 16px; }
+  .card-header h2 { font-size: 15px; }
+  .stat-value { font-size: 22px; }
+  .grid-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .forecast { grid-template-columns: repeat(7, minmax(70px, 1fr)); }
+  #map, .mini-map { height: 400px; }
+  .tabs { padding: 10px 14px; }
+  .tab { padding: 6px 12px; font-size: 12px; }
+  .list li { padding: 10px 12px; }
+  .item-title { font-size: 12px; }
+  .item-meta { font-size: 10px; }
+}
+
+@media (max-width: 380px) {
+  .grid-stats { grid-template-columns: 1fr; }
+  .stat-value { font-size: 20px; }
+  .brand h1 { font-size: 14px; }
+}
+
+/* ===== SAFE AREA (iOS notch) ===== */
+@supports (padding: max(0px)) {
+  .topbar {
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+  }
+  footer {
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+}
+
+/* ===== DARK MODE SCROLLBAR ===== */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+/* ===== SELECTION ===== */
+::selection { background: var(--accent-2); color: white; }
+
+/* ===== FOCUS VISIBLE ===== */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ===== PRINT ===== */
+@media print {
+  .topbar, .tabs, .map-card, #btn-notif, #btn-install, footer { display: none; }
+  body { background: white; color: black; }
+  .card { border: 1px solid #ccc; box-shadow: none; }
 }
