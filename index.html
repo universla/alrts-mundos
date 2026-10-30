@@ -16,7 +16,40 @@
 </head>
 <body>
 
-  <!-- VENTANA DE EMERGENCIA -->
+  <!-- PANTALLA FLOTANTE DE ALERTA SÍSMICA -->
+  <div id="quake-alert-overlay" class="quake-alert-overlay hidden">
+    <div class="quake-alert-header">
+      <div class="quake-alert-icon"></div>
+      <h1 class="quake-alert-title">¡SISMO DETECTADO!</h1>
+    </div>
+    
+    <div class="quake-alert-info">
+      <div class="quake-magnitude" id="alert-magnitude">M --</div>
+      <div class="quake-location" id="alert-location">Ubicando...</div>
+      <div class="quake-distance" id="alert-distance">-- km de distancia</div>
+    </div>
+
+    <div class="quake-countdown">
+      <div class="countdown-label">Tiempo estimado de llegada</div>
+      <div class="countdown-timer" id="alert-countdown">--:--</div>
+      <div class="countdown-sub">Ondas sísmicas en camino</div>
+    </div>
+
+    <div class="quake-instructions">
+      <h3>¿Qué hacer?</h3>
+      <ul>
+        <li>Mantén la calma</li>
+        <li>Aléjate de ventanas y objetos que puedan caer</li>
+        <li>Si estás dentro, quédate dentro</li>
+        <li>Si estás fuera, aléjate de edificios</li>
+        <li>No uses elevadores</li>
+      </ul>
+    </div>
+
+    <button id="btn-close-quake-alert" class="btn-close-alert">CERRAR ALERTA</button>
+  </div>
+
+  <!-- VENTANA DE EMERGENCIA MANUAL -->
   <div id="emergency-overlay" class="emergency-overlay hidden">
     <div class="emergency-icon"></div>
     <h1 class="emergency-title">ALERTA DE EMERGENCIA</h1>
@@ -49,6 +82,7 @@
     <button class="tab active" data-tab="dashboard">Inicio</button>
     <button class="tab" data-tab="mapa">Mapa</button>
     <button class="tab" data-tab="zonas">Por País</button>
+    <button class="tab" data-tab="historial">Historial</button>
     <button class="tab" data-tab="ajustes">Ajustes</button>
   </nav>
 
@@ -84,6 +118,17 @@
           <span class="badge" id="alerts-badge">--</span>
         </div>
         <ul class="list" id="alerts-list"></ul>
+      </div>
+
+      <div class="card alert-status-card">
+        <div class="alert-status-header">
+          <h3>Sistema de Monitoreo</h3>
+          <span class="status-indicator" id="monitor-status">● Activo</span>
+        </div>
+        <div class="alert-status-info">
+          <p>Última revisión: <span id="last-check">--</span></p>
+          <p>Sismos monitoreados: <span id="monitored-quakes">0</span></p>
+        </div>
       </div>
     </section>
 
@@ -126,8 +171,54 @@
       </div>
     </section>
 
+    <!-- HISTORIAL DE ALERTAS -->
+    <section id="historial" class="view">
+      <div class="card">
+        <div class="card-header">
+          <h2>Historial de Alertas Sísmicas</h2>
+          <button id="btn-clear-history" class="btn-small">Limpiar</button>
+        </div>
+        <ul class="list" id="alert-history-list"></ul>
+      </div>
+    </section>
+
     <!-- AJUSTES -->
     <section id="ajustes" class="view">
+      <div class="card">
+        <div class="card-header"><h2>Configuración de Alertas</h2></div>
+        <div class="settings-group">
+          <label class="setting-item">
+            <span>Magnitud mínima para alertar</span>
+            <select id="cfg-magnitude" class="select" style="width: auto;">
+              <option value="3.0">M 3.0+</option>
+              <option value="4.0">M 4.0+</option>
+              <option value="4.5" selected>M 4.5+</option>
+              <option value="5.0">M 5.0+</option>
+              <option value="6.0">M 6.0+</option>
+            </select>
+          </label>
+          <label class="setting-item">
+            <span>Distancia máxima (km)</span>
+            <select id="cfg-distance" class="select" style="width: auto;">
+              <option value="100">100 km</option>
+              <option value="250">250 km</option>
+              <option value="500" selected>500 km</option>
+              <option value="1000">1000 km</option>
+              <option value="2000">2000 km</option>
+            </select>
+          </label>
+          <label class="setting-item">
+            <span>Activar sonido de alarma</span>
+            <input type="checkbox" id="cfg-sound" class="toggle" checked />
+          </label>
+          <label class="setting-item">
+            <span>Activar vibración</span>
+            <input type="checkbox" id="cfg-vibration" class="toggle" checked />
+          </label>
+          <button id="btn-save-alert-config" class="btn-primary">Guardar Configuración</button>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header"><h2>Zona de Pruebas del Sistema</h2></div>
         <p class="meta" style="margin-bottom: 16px;">Verifica que todas las funciones respondan correctamente.</p>
@@ -142,9 +233,14 @@
             <span>2. Probar Ventana de Emergencia</span>
             <small>Activa la pantalla completa roja y la vibración</small>
           </button>
+
+          <button id="btn-test-quake-alert" class="btn-danger">
+            <span>3. Simular Alerta de Sismo Real</span>
+            <small>Prueba la pantalla flotante con cuenta regresiva y sonido</small>
+          </button>
           
           <button id="btn-test-map" class="btn-primary">
-            <span>3. Forzar Recarga del Mapa</span>
+            <span>4. Forzar Recarga del Mapa</span>
             <small>Reinicia el mapa si se ve gris o vacío</small>
           </button>
         </div>
@@ -174,7 +270,7 @@
 
   <footer>
     <p>Datos: USGS, Open-Meteo, NASA EONET, OpenStreetMap</p>
-    <p>Actualización automática cada 5 minutos</p>
+    <p>Monitoreo en tiempo real cada 30 segundos</p>
   </footer>
 
   <div id="toast" class="toast"></div>
