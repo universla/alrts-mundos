@@ -1,10 +1,11 @@
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 
-let userLat = null, userLon = null;
-let map, weatherMap, currentLayer = null;
+let userLat = null, userLon = null, userCity = "Detectando...";
+let map, weatherMap, currentLayer = null, userMarker = null;
 let deferredPrompt = null;
 let notifEnabled = false;
+let radarLayer = null;
 
 // ============ TOAST ============
 function toast(msg, duration = 3000) {
@@ -14,6 +15,22 @@ function toast(msg, duration = 3000) {
   setTimeout(() => t.classList.remove("show"), duration);
 }
 
+// ============ GEOCODING INVERSO (nombre de ciudad) ============
+async function reverseGeocode(lat, lon) {
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`, {
+      headers: { "Accept-Language": "es" }
+    });
+    const d = await r.json();
+    const a = d.address;
+    const city = a.city || a.town || a.village || a.county || a.state || "";
+    const country = a.country || "";
+    return city && country ? `${city}, ${country}` : d.display_name || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  } catch (e) {
+    return `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+  }
+}
+
 // ============ TABS ============
 $$(".tab").forEach(tab => {
   tab.addEventListener("click", () => {
@@ -21,7 +38,11 @@ $$(".tab").forEach(tab => {
     $$(".view").forEach(v => v.classList.remove("active"));
     tab.classList.add("active");
     $(`#${tab.dataset.tab}`).classList.add("active");
-    if (tab.dataset.tab === "mapa" && map) setTimeout(() => map.invalidateSize(), 100);
+    // Redimensionar mapas al cambiar de pestaña
+    setTimeout(() => {
+      if (tab.dataset.tab === "mapa" && map) map.invalidateSize();
+      if (tab.dataset.tab === "clima" && weatherMap) weatherMap.invalidateSize();
+    }, 150);
   });
 });
 
@@ -35,7 +56,7 @@ async function loadWeather(lat, lon) {
     const desc = weatherCode(c.weather_code);
 
     $("#d-temp").textContent = `${Math.round(c.temperature_2m)}°C`;
-    $("#d-loc").textContent = desc;
+    $("#d-loc").textContent = `${userCity} · ${desc}`;
 
     $("#w-temp").textContent = `${Math.round(c.temperature_2m)}°C`;
     $("#w-feels").textContent = `${Math.round(c.apparent_temperature)}°C`;
@@ -122,7 +143,7 @@ async function loadQuakeMap() {
         const mag = f.properties.mag;
         const color = mag >= 6 ? "#f85149" : mag >= 4.5 ? "#d29922" : "#3fb950";
         return L.circleMarker(latlng, {
-          radius: Math.max(4, mag * 3),
+          radius: Math.max(5, mag * 3),
           color: color,
           fillColor: color,
           fillOpacity: 0.5,
@@ -146,7 +167,7 @@ async function loadQuakeMap() {
       <div class="legend-item"><span class="legend-dot" style="background:#d29922"></span>M 4.5-6.0</div>
       <div class="legend-item"><span class="legend-dot" style="background:#f85149"></span>M 6.0+</div>
     `;
-  } catch (e) { console.error(e); }
+  } catch (e) { console.error(e); toast("Error al cargar sismos en mapa"); }
 }
 
 // ============ NASA EVENTS MAP ============
@@ -162,7 +183,7 @@ async function loadEventsMap(type = "all") {
       if (!cat) return;
       if (type !== "all") {
         if (type === "fires" && cat.id !== 8) return;
-        if (type === "storms" && cat.id !== 10) return;
+        if (type === "storms" && cat.id !== 10 && cat.id !== 9) return;
         if (type === "volcanoes" && cat.id !== 12) return;
         if (type === "weather" && cat.id !== 9 && cat.id !== 10) return;
       }
@@ -181,7 +202,7 @@ async function loadEventsMap(type = "all") {
         const colors = { 8: "#db6d28", 9: "#58a6ff", 10: "#bc8cff", 12: "#f85149" };
         const color = colors[f.properties.id] || "#58a6ff";
         return L.circleMarker(latlng, {
-          radius: 7, color, fillColor: color, fillOpacity: 0.7, weight: 2
+          radius: 8, color, fillColor: color, fillOpacity: 0.7, weight: 2
         });
       },
       onEachFeature: (f, layer) => {
@@ -198,10 +219,10 @@ async function loadEventsMap(type = "all") {
       storms: '<span class="legend-dot" style="background:#bc8cff"></span>Tormentas',
       volcanoes: '<span class="legend-dot" style="background:#f85149"></span>Volcanes',
       weather: '<span class="legend-dot" style="background:#58a6ff"></span>Clima extremo',
-      all: '<span class="legend-dot" style="background:#58a6ff"></span>Todos'
+      all: '<span class="legend-dot" style="background:#58a6ff"></span>Todos los eventos'
     };
     $("#map-legend").innerHTML = `<div class="legend-item">${legendColors[type]}</div>`;
-  } catch (e) { console.error(e); }
+  } catch (e) { console.error(e); toast("Error al cargar eventos"); }
 }
 
 // ============ QUAKE LIST ============
@@ -228,7 +249,9 @@ async function loadQuakes(filter = "significant_month") {
       `;
       li.addEventListener("click", () => {
         $$(".tab")[1].click();
-        map.setView([q.geometry.coordinates[1], q.geometry.coordinates[0]], 6);
+        setTimeout(() => {
+          map.setView([q.geometry.coordinates[1], q.geometry.coordinates[0]], 6);
+        }, 200);
       });
       list.appendChild(li);
     });
@@ -243,7 +266,7 @@ async function loadQuakes(filter = "significant_month") {
       const al = $("#alerts-list");
       al.innerHTML = "";
       if (nearby.length === 0) {
-        al.innerHTML = `<li style="cursor:default;justify-content:center;color:var(--text-dim)">Sin alertas cercanas</li>`;
+        al.innerHTML = `<li style="cursor:default;justify-content:center;color:var(--text-dim)">Sin alertas cercanas (500 km)</li>`;
       } else {
         nearby.forEach(q => {
           const p = q.properties;
@@ -300,21 +323,38 @@ async function loadEvents() {
   } catch (e) { console.error(e); }
 }
 
+// ============ RADAR DE LLUVIA ============
+function updateRadar() {
+  if (!weatherMap) return;
+  if (radarLayer) weatherMap.removeLayer(radarLayer);
+  // RainViewer actualiza cada 10 min, usa el timestamp más reciente
+  const ts = Math.floor(Date.now() / 1000 / 600) * 600;
+  radarLayer = L.tileLayer(
+    `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/2/1_1.png`,
+    { opacity: 0.65, maxZoom: 19 }
+  ).addTo(weatherMap);
+}
+
 // ============ MAP INIT ============
 function initMaps() {
-  map = L.map("map", { zoomControl: true }).setView([20, 0], 2);
+  map = L.map("map", { zoomControl: true, worldCopyJump: true }).setView([20, 0], 2);
   L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
     subdomains: 'abcd', maxZoom: 19
   }).addTo(map);
 
-  weatherMap = L.map("weather-map").setView([20, 0], 2);
+  // Control de geolocalización nativo
+  L.control.locate({
+    position: "topright",
+    strings: { title: "Ir a mi ubicación" },
+    locateOptions: { enableHighAccuracy: true, maxZoom: 10 }
+  }).addTo(map);
+
+  weatherMap = L.map("weather-map", { zoomControl: true, worldCopyJump: true }).setView([20, 0], 2);
   L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
     attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 19
   }).addTo(weatherMap);
-  L.tileLayer("https://tilecache.rainviewer.com/v2/radar/{ts}/256/{z}/{x}/{y}/2/1_1.png", {
-    ts: Math.floor(Date.now()/1000/600)*600, opacity: 0.6
-  }).addTo(weatherMap);
+  updateRadar();
 
   $$(".map-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -327,6 +367,24 @@ function initMaps() {
   });
 
   loadQuakeMap();
+}
+
+// ============ MARCADOR DE USUARIO ============
+function placeUserMarker(lat, lon, label) {
+  // Icono personalizado con pulso
+  const pulseIcon = L.divIcon({
+    className: "user-marker",
+    html: `
+      <div class="pulse-ring"></div>
+      <div class="pulse-core"></div>
+    `,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+  });
+  if (userMarker) map.removeLayer(userMarker);
+  userMarker = L.marker([lat, lon], { icon: pulseIcon })
+    .addTo(map)
+    .bindPopup(`<strong>Tu ubicación</strong><br>${label}`);
 }
 
 // ============ NOTIFICATIONS ============
@@ -400,15 +458,51 @@ async function init() {
   $("#status").textContent = "Detectando ubicación...";
   initMaps();
 
+  // Agregar estilos dinámicos para el marcador de usuario
+  const style = document.createElement("style");
+  style.textContent = `
+    .user-marker { position: relative; }
+    .pulse-core {
+      position: absolute;
+      width: 14px; height: 14px;
+      background: #58a6ff;
+      border: 3px solid white;
+      border-radius: 50%;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 8px rgba(88,166,255,0.8);
+      z-index: 2;
+    }
+    .pulse-ring {
+      position: absolute;
+      width: 40px; height: 40px;
+      border: 2px solid #58a6ff;
+      border-radius: 50%;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      animation: pulseRing 2s infinite;
+      z-index: 1;
+    }
+    @keyframes pulseRing {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         userLat = pos.coords.latitude;
         userLon = pos.coords.longitude;
-        $("#status").textContent = "Ubicación detectada";
-        map.setView([userLat, userLon], 5);
-        weatherMap.setView([userLat, userLon], 5);
-        L.marker([userLat, userLon]).addTo(map).bindPopup("Tu ubicación").openPopup();
+
+        // Geocoding inverso para obtener nombre real
+        userCity = await reverseGeocode(userLat, userLon);
+        $("#status").textContent = userCity;
+
+        map.setView([userLat, userLon], 6);
+        weatherMap.setView([userLat, userLon], 6);
+        placeUserMarker(userLat, userLon, userCity);
 
         await Promise.all([
           loadWeather(userLat, userLon),
@@ -417,29 +511,38 @@ async function init() {
           loadEvents()
         ]);
 
-        // Notificar sismo fuerte cercano
         if (notifEnabled) {
           setTimeout(() => {
             const strong = document.querySelectorAll("#alerts-list .tag-high, #alerts-list .tag-critical");
             if (strong.length > 0) {
-              sendAlertNotification("Sismo cercano detectado", `${strong.length} sismo(s) significativo(s) cerca de tu ubicación`, "quake-alert");
+              sendAlertNotification(
+                "Sismo cercano detectado",
+                `${strong.length} sismo(s) significativo(s) cerca de ${userCity}`,
+                "quake-alert"
+              );
             }
           }, 2000);
         }
       },
-      (err) => {
+      async (err) => {
         console.warn("Geoloc error", err);
         userLat = 40.4168; userLon = -3.7038;
-        $("#status").textContent = "Ubicación por defecto";
+        userCity = await reverseGeocode(userLat, userLon);
+        $("#status").textContent = `${userCity} (por defecto)`;
+        toast("Usando ubicación por defecto. Permite geolocalización para tu zona.");
+        map.setView([userLat, userLon], 5);
+        weatherMap.setView([userLat, userLon], 5);
+        placeUserMarker(userLat, userLon, userCity);
         loadWeather(userLat, userLon);
         loadAirQuality(userLat, userLon);
         loadQuakes("significant_month");
         loadEvents();
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   } else {
     userLat = 40.4168; userLon = -3.7038;
+    userCity = "Madrid, España";
     loadWeather(userLat, userLon);
     loadAirQuality(userLat, userLon);
     loadQuakes("significant_month");
@@ -459,6 +562,7 @@ setInterval(() => {
   }
   loadQuakes($("#quake-filter").value);
   loadEvents();
+  updateRadar();
   if ($(".tab.active").dataset.tab === "mapa") {
     const active = $(".map-btn.active");
     if (active.dataset.layer === "quakes") loadQuakeMap();
