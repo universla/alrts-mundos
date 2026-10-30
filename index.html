@@ -18,6 +18,15 @@
 </head>
 <body>
 
+  <!-- VENTANA DE EMERGENCIA (Oculta por defecto) -->
+  <div id="emergency-overlay" class="emergency-overlay hidden">
+    <div class="emergency-icon"></div>
+    <h1 class="emergency-title">ALERTA DE EMERGENCIA</h1>
+    <p class="emergency-text" id="emergency-message">Se ha detectado un evento crítico en tu zona.</p>
+    <div class="emergency-details" id="emergency-details"></div>
+    <button id="btn-exit-emergency" class="btn-emergency">CONFIRMAR Y SALIR</button>
+  </div>
+
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="brand">
@@ -26,6 +35,9 @@
       <span class="version">PRO</span>
     </div>
     <div class="topbar-actions">
+      <button id="btn-emergency-trigger" class="icon-btn danger" title="Modo Emergencia">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </button>
       <button id="btn-notif" class="icon-btn" title="Activar notificaciones">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       </button>
@@ -40,10 +52,8 @@
   <nav class="tabs">
     <button class="tab active" data-tab="dashboard">Dashboard</button>
     <button class="tab" data-tab="mapa">Mapa</button>
-    <button class="tab" data-tab="clima">Clima</button>
-    <button class="tab" data-tab="sismos">Sismos</button>
-    <button class="tab" data-tab="eventos">Eventos</button>
-    <button class="tab" data-tab="aire">Calidad Aire</button>
+    <button class="tab" data-tab="zonas">Por Zona</button>
+    <button class="tab" data-tab="config">Configuracion</button>
   </nav>
 
   <main>
@@ -53,39 +63,32 @@
       <div class="grid-stats">
         <div class="card stat-card">
           <span class="stat-label">Temperatura</span>
-          <strong id="d-temp" class="stat-value">—</strong>
+          <strong id="d-temp" class="stat-value">--</strong>
           <span class="stat-sub" id="d-loc">Detectando...</span>
         </div>
         <div class="card stat-card">
           <span class="stat-label">Sismos 24h</span>
-          <strong id="d-quakes" class="stat-value">—</strong>
+          <strong id="d-quakes" class="stat-value">--</strong>
           <span class="stat-sub">Significativos</span>
         </div>
         <div class="card stat-card">
           <span class="stat-label">Eventos activos</span>
-          <strong id="d-events" class="stat-value">—</strong>
+          <strong id="d-events" class="stat-value">--</strong>
           <span class="stat-sub">NASA EONET</span>
         </div>
         <div class="card stat-card">
           <span class="stat-label">Calidad aire</span>
-          <strong id="d-aqi" class="stat-value">—</strong>
-          <span class="stat-sub" id="d-aqi-label">—</span>
+          <strong id="d-aqi" class="stat-value">--</strong>
+          <span class="stat-sub" id="d-aqi-label">--</span>
         </div>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <h2>Alertas cercanas</h2>
-          <span class="badge" id="alerts-badge">—</span>
+          <h2>Alertas cercanas a tu ubicacion</h2>
+          <span class="badge" id="alerts-badge">--</span>
         </div>
         <ul class="list" id="alerts-list"></ul>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <h2>Pronóstico 7 días</h2>
-        </div>
-        <div class="forecast" id="forecast"></div>
       </div>
     </section>
 
@@ -97,90 +100,72 @@
           <button class="map-btn" data-layer="fires">Incendios</button>
           <button class="map-btn" data-layer="storms">Tormentas</button>
           <button class="map-btn" data-layer="volcanoes">Volcanes</button>
-          <button class="map-btn" data-layer="weather">Clima</button>
         </div>
         <div id="map"></div>
         <div class="map-legend" id="map-legend"></div>
       </div>
     </section>
 
-    <!-- CLIMA -->
-    <section id="clima" class="view">
+    <!-- POR ZONA / PAIS -->
+    <section id="zonas" class="view">
       <div class="card">
         <div class="card-header">
-          <h2>Clima actual</h2>
-          <span class="badge" id="w-badge">—</span>
-        </div>
-        <div class="grid-2">
-          <div class="stat"><span class="label">Temperatura</span><strong id="w-temp">—</strong></div>
-          <div class="stat"><span class="label">Sensación</span><strong id="w-feels">—</strong></div>
-          <div class="stat"><span class="label">Viento</span><strong id="w-wind">—</strong></div>
-          <div class="stat"><span class="label">Humedad</span><strong id="w-hum">—</strong></div>
-          <div class="stat"><span class="label">Presión</span><strong id="w-pres">—</strong></div>
-          <div class="stat"><span class="label">UV Index</span><strong id="w-uv">—</strong></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><h2>Mapa de precipitación (radar)</h2></div>
-        <div id="weather-map" class="mini-map"></div>
-      </div>
-    </section>
-
-    <!-- SISMOS -->
-    <section id="sismos" class="view">
-      <div class="card">
-        <div class="card-header">
-          <h2>Sismos recientes</h2>
-          <select id="quake-filter" class="select">
-            <option value="significant_month">Último mes (significativos)</option>
-            <option value="2.5_day">Últimas 24h (M2.5+)</option>
-            <option value="4.5_week">Última semana (M4.5+)</option>
-            <option value="all_hour">Última hora (todos)</option>
+          <h2>Alertas por Pais o Zona</h2>
+          <select id="country-filter" class="select">
+            <option value="Mexico">Mexico</option>
+            <option value="Chile">Chile</option>
+            <option value="Peru">Peru</option>
+            <option value="Argentina">Argentina</option>
+            <option value="Colombia">Colombia</option>
+            <option value="Espana">Espana</option>
+            <option value="Estados Unidos">Estados Unidos</option>
+            <option value="Japon">Japon</option>
+            <option value="Global">Todo el mundo</option>
           </select>
         </div>
-        <ul class="list" id="quakes-list"></ul>
+        <ul class="list" id="zone-quakes-list"></ul>
+      </div>
+      
+      <div class="card">
+        <div class="card-header"><h2>Eventos naturales en la zona</h2></div>
+        <ul class="list" id="zone-events-list"></ul>
       </div>
     </section>
 
-    <!-- EVENTOS -->
-    <section id="eventos" class="view">
+    <!-- CONFIGURACION -->
+    <section id="config" class="view">
       <div class="card">
-        <div class="card-header">
-          <h2>Eventos naturales activos</h2>
-          <span class="badge" id="ev-badge">—</span>
+        <div class="card-header"><h2>Preferencias</h2></div>
+        <div class="settings-group">
+          <label class="setting-item">
+            <span>Notificaciones push</span>
+            <input type="checkbox" id="cfg-notif" class="toggle" />
+          </label>
+          <label class="setting-item">
+            <span>Ubicacion predeterminada</span>
+            <input type="text" id="cfg-location" class="input-text" placeholder="Ej: Mexico" />
+          </label>
+          <button id="btn-save-config" class="btn-primary">Guardar configuracion</button>
         </div>
-        <ul class="list" id="events-list"></ul>
       </div>
-    </section>
 
-    <!-- CALIDAD AIRE -->
-    <section id="aire" class="view">
       <div class="card">
-        <div class="card-header">
-          <h2>Calidad del aire</h2>
-          <span class="badge" id="aqi-badge">—</span>
+        <div class="card-header"><h2>Zona de pruebas</h2></div>
+        <div class="settings-group">
+          <p class="meta">Simula alertas para verificar el funcionamiento de la interfaz y vibracion.</p>
+          <button id="btn-test-quake" class="btn-secondary">Probar alerta de sismo</button>
+          <button id="btn-test-emergency" class="btn-danger">Probar ventana de emergencia</button>
         </div>
-        <div class="grid-2">
-          <div class="stat"><span class="label">AQI (PM2.5)</span><strong id="aqi-pm25">—</strong></div>
-          <div class="stat"><span class="label">PM10</span><strong id="aqi-pm10">—</strong></div>
-          <div class="stat"><span class="label">Ozono (O₃)</span><strong id="aqi-o3">—</strong></div>
-          <div class="stat"><span class="label">NO₂</span><strong id="aqi-no2">—</strong></div>
-          <div class="stat"><span class="label">SO₂</span><strong id="aqi-so2">—</strong></div>
-          <div class="stat"><span class="label">CO</span><strong id="aqi-co">—</strong></div>
-        </div>
-        <p class="meta" id="aqi-advice"></p>
       </div>
     </section>
 
   </main>
 
   <footer>
-    <p>Datos: USGS · Open-Meteo · NASA EONET · OpenStreetMap · Leaflet</p>
-    <p>Actualización automática cada 5 minutos · PWA instalable</p>
+    <p>Datos: USGS, Open-Meteo, NASA EONET, OpenStreetMap</p>
+    <p>Actualizacion automatica cada 5 minutos</p>
   </footer>
 
-  <!-- TOAST -->
   <div id="toast" class="toast"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
