@@ -2,32 +2,34 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#0d1117" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" content="Alertas globales de clima, sismos, incendios y calidad del aire" />
   <title>GlobalAlerts Pro</title>
 
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/icon-192.svg" />
-
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- VENTANA DE EMERGENCIA (Oculta por defecto) -->
+  <!-- VENTANA DE EMERGENCIA (Pantalla completa) -->
   <div id="emergency-overlay" class="emergency-overlay hidden">
     <div class="emergency-icon"></div>
     <h1 class="emergency-title">ALERTA DE EMERGENCIA</h1>
     <p class="emergency-text" id="emergency-message">Se ha detectado un evento crítico en tu zona.</p>
-    <div class="emergency-details" id="emergency-details"></div>
-    <button id="btn-exit-emergency" class="btn-emergency">CONFIRMAR Y SALIR</button>
+    <div class="emergency-details" id="emergency-details">
+      <p>Busque un lugar seguro inmediatamente.</p>
+      <p>Alejese de ventanas, espejos y estructuras inestables.</p>
+      <p>No use elevadores.</p>
+    </div>
+    <button id="btn-exit-emergency" class="btn-emergency">ENTENDIDO, CERRAR ALERTA</button>
   </div>
 
-  <!-- TOPBAR -->
+  <!-- BARRA SUPERIOR -->
   <header class="topbar">
     <div class="brand">
       <span class="logo-mark"></span>
@@ -35,12 +37,6 @@
       <span class="version">PRO</span>
     </div>
     <div class="topbar-actions">
-      <button id="btn-emergency-trigger" class="icon-btn danger" title="Modo Emergencia">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      </button>
-      <button id="btn-notif" class="icon-btn" title="Activar notificaciones">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      </button>
       <button id="btn-install" class="icon-btn hidden" title="Instalar app">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </button>
@@ -48,17 +44,16 @@
     </div>
   </header>
 
-  <!-- TABS -->
+  <!-- PESTAÑAS DE NAVEGACIÓN -->
   <nav class="tabs">
-    <button class="tab active" data-tab="dashboard">Dashboard</button>
+    <button class="tab active" data-tab="dashboard">Inicio</button>
     <button class="tab" data-tab="mapa">Mapa</button>
-    <button class="tab" data-tab="zonas">Por Zona</button>
-    <button class="tab" data-tab="config">Configuracion</button>
+    <button class="tab" data-tab="zonas">Por País</button>
+    <button class="tab" data-tab="ajustes">Ajustes</button>
   </nav>
 
   <main>
-
-    <!-- DASHBOARD -->
+    <!-- VISTA: INICIO -->
     <section id="dashboard" class="view active">
       <div class="grid-stats">
         <div class="card stat-card">
@@ -67,17 +62,17 @@
           <span class="stat-sub" id="d-loc">Detectando...</span>
         </div>
         <div class="card stat-card">
-          <span class="stat-label">Sismos 24h</span>
+          <span class="stat-label">Sismos (24h)</span>
           <strong id="d-quakes" class="stat-value">--</strong>
           <span class="stat-sub">Significativos</span>
         </div>
         <div class="card stat-card">
-          <span class="stat-label">Eventos activos</span>
+          <span class="stat-label">Eventos</span>
           <strong id="d-events" class="stat-value">--</strong>
           <span class="stat-sub">NASA EONET</span>
         </div>
         <div class="card stat-card">
-          <span class="stat-label">Calidad aire</span>
+          <span class="stat-label">Calidad Aire</span>
           <strong id="d-aqi" class="stat-value">--</strong>
           <span class="stat-sub" id="d-aqi-label">--</span>
         </div>
@@ -85,14 +80,14 @@
 
       <div class="card">
         <div class="card-header">
-          <h2>Alertas cercanas a tu ubicacion</h2>
+          <h2>Alertas cercanas a tu ubicación</h2>
           <span class="badge" id="alerts-badge">--</span>
         </div>
         <ul class="list" id="alerts-list"></ul>
       </div>
     </section>
 
-    <!-- MAPA -->
+    <!-- VISTA: MAPA -->
     <section id="mapa" class="view">
       <div class="card map-card">
         <div class="map-controls">
@@ -106,64 +101,74 @@
       </div>
     </section>
 
-    <!-- POR ZONA / PAIS -->
+    <!-- VISTA: POR PAÍS -->
     <section id="zonas" class="view">
       <div class="card">
         <div class="card-header">
-          <h2>Alertas por Pais o Zona</h2>
+          <h2>Alertas por País o Zona</h2>
           <select id="country-filter" class="select">
-            <option value="Mexico">Mexico</option>
+            <option value="Mexico">México</option>
             <option value="Chile">Chile</option>
-            <option value="Peru">Peru</option>
+            <option value="Peru">Perú</option>
             <option value="Argentina">Argentina</option>
             <option value="Colombia">Colombia</option>
-            <option value="Espana">Espana</option>
-            <option value="Estados Unidos">Estados Unidos</option>
-            <option value="Japon">Japon</option>
+            <option value="Espana">España</option>
+            <option value="Japon">Japón</option>
             <option value="Global">Todo el mundo</option>
           </select>
         </div>
         <ul class="list" id="zone-quakes-list"></ul>
       </div>
-      
-      <div class="card">
-        <div class="card-header"><h2>Eventos naturales en la zona</h2></div>
-        <ul class="list" id="zone-events-list"></ul>
-      </div>
     </section>
 
-    <!-- CONFIGURACION -->
-    <section id="config" class="view">
+    <!-- VISTA: AJUSTES Y PRUEBAS -->
+    <section id="ajustes" class="view">
       <div class="card">
-        <div class="card-header"><h2>Preferencias</h2></div>
+        <div class="card-header"><h2>Zona de Pruebas del Sistema</h2></div>
+        <p class="meta" style="margin-bottom: 16px;">Utiliza estos botones para verificar que todas las funciones de la app responden correctamente.</p>
+        
+        <div class="settings-group">
+          <button id="btn-test-notif" class="btn-secondary">
+            <span>1. Probar Notificación Push</span>
+            <small>Verifica el permiso y muestra una alerta nativa</small>
+          </button>
+          
+          <button id="btn-test-emergency" class="btn-danger">
+            <span>2. Probar Ventana de Emergencia</span>
+            <small>Activa la pantalla completa roja y la vibración del celular</small>
+          </button>
+          
+          <button id="btn-test-map" class="btn-primary">
+            <span>3. Forzar Recarga del Mapa</span>
+            <small>Reinicia el mapa si se ve gris o no carga los marcadores</small>
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Configuración General</h2></div>
         <div class="settings-group">
           <label class="setting-item">
-            <span>Notificaciones push</span>
+            <span>Activar notificaciones automáticas</span>
             <input type="checkbox" id="cfg-notif" class="toggle" />
           </label>
           <label class="setting-item">
-            <span>Ubicacion predeterminada</span>
-            <input type="text" id="cfg-location" class="input-text" placeholder="Ej: Mexico" />
+            <span>País predeterminado</span>
+            <select id="cfg-country" class="select" style="width: auto;">
+              <option value="Mexico">México</option>
+              <option value="Chile">Chile</option>
+              <option value="Global">Global</option>
+            </select>
           </label>
-          <button id="btn-save-config" class="btn-primary">Guardar configuracion</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><h2>Zona de pruebas</h2></div>
-        <div class="settings-group">
-          <p class="meta">Simula alertas para verificar el funcionamiento de la interfaz y vibracion.</p>
-          <button id="btn-test-quake" class="btn-secondary">Probar alerta de sismo</button>
-          <button id="btn-test-emergency" class="btn-danger">Probar ventana de emergencia</button>
+          <button id="btn-save-config" class="btn-primary">Guardar Configuración</button>
         </div>
       </div>
     </section>
-
   </main>
 
   <footer>
     <p>Datos: USGS, Open-Meteo, NASA EONET, OpenStreetMap</p>
-    <p>Actualizacion automatica cada 5 minutos</p>
+    <p>Actualización automática cada 5 minutos</p>
   </footer>
 
   <div id="toast" class="toast"></div>
