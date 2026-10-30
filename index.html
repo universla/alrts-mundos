@@ -16,42 +16,65 @@
 </head>
 <body>
 
+  <!-- AUDIO DE ALARMA (pre-cargado) -->
+  <audio id="alarm-audio" preload="auto" loop>
+    <source src="https://www.soundjay.com/mechanical/sounds/alarm-clock-01.mp3" type="audio/mpeg">
+  </audio>
+
   <!-- PANTALLA FLOTANTE DE ALERTA SÍSMICA -->
   <div id="quake-alert-overlay" class="quake-alert-overlay hidden">
     <div class="quake-alert-header">
-      <div class="quake-alert-icon"></div>
+      <div class="quake-alert-icon">
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
       <h1 class="quake-alert-title">¡SISMO DETECTADO!</h1>
+      <p class="quake-alert-subtitle">ALERTA TEMPRANA ACTIVADA</p>
     </div>
     
     <div class="quake-alert-info">
       <div class="quake-magnitude" id="alert-magnitude">M --</div>
       <div class="quake-location" id="alert-location">Ubicando...</div>
       <div class="quake-distance" id="alert-distance">-- km de distancia</div>
+      <div class="quake-depth" id="alert-depth">Profundidad: -- km</div>
     </div>
 
     <div class="quake-countdown">
-      <div class="countdown-label">Tiempo estimado de llegada</div>
+      <div class="countdown-label">Tiempo estimado de llegada de ondas</div>
       <div class="countdown-timer" id="alert-countdown">--:--</div>
-      <div class="countdown-sub">Ondas sísmicas en camino</div>
+      <div class="countdown-sub" id="countdown-sub">Calculando...</div>
     </div>
 
     <div class="quake-instructions">
-      <h3>¿Qué hacer?</h3>
+      <h3>🛡️ Protocolo de seguridad</h3>
       <ul>
-        <li>Mantén la calma</li>
+        <li>Mantén la calma y no corras</li>
         <li>Aléjate de ventanas y objetos que puedan caer</li>
-        <li>Si estás dentro, quédate dentro</li>
-        <li>Si estás fuera, aléjate de edificios</li>
-        <li>No uses elevadores</li>
+        <li>Si estás dentro, quédate dentro (posición de seguridad)</li>
+        <li>Si estás fuera, aléjate de edificios y postes</li>
+        <li>No uses elevadores ni escaleras durante el sismo</li>
+        <li>Revisa fugas de gas después del sismo</li>
       </ul>
     </div>
 
-    <button id="btn-close-quake-alert" class="btn-close-alert">CERRAR ALERTA</button>
+    <div class="quake-actions">
+      <button id="btn-silence-alarm" class="btn-silence"> SILENCIAR ALARMA</button>
+      <button id="btn-close-quake-alert" class="btn-close-alert">CERRAR ALERTA</button>
+    </div>
   </div>
 
   <!-- VENTANA DE EMERGENCIA MANUAL -->
   <div id="emergency-overlay" class="emergency-overlay hidden">
-    <div class="emergency-icon"></div>
+    <div class="emergency-icon">
+      <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
     <h1 class="emergency-title">ALERTA DE EMERGENCIA</h1>
     <p class="emergency-text" id="emergency-message">Se ha detectado un evento crítico en tu zona.</p>
     <div class="emergency-details" id="emergency-details">
@@ -122,12 +145,13 @@
 
       <div class="card alert-status-card">
         <div class="alert-status-header">
-          <h3>Sistema de Monitoreo</h3>
+          <h3>🛰️ Sistema de Monitoreo</h3>
           <span class="status-indicator" id="monitor-status">● Activo</span>
         </div>
         <div class="alert-status-info">
           <p>Última revisión: <span id="last-check">--</span></p>
           <p>Sismos monitoreados: <span id="monitored-quakes">0</span></p>
+          <p>Alertas activas: <span id="active-alerts">0</span></p>
         </div>
       </div>
     </section>
@@ -137,14 +161,15 @@
       <div class="card map-card">
         <div class="map-controls">
           <button class="map-btn active" data-layer="quakes">Sismos</button>
+          <button class="map-btn" data-layer="hurricanes">Huracanes</button>
           <button class="map-btn" data-layer="fires">Incendios</button>
-          <button class="map-btn" data-layer="storms">Tormentas</button>
           <button class="map-btn" data-layer="volcanoes">Volcanes</button>
+          <button class="map-btn" data-layer="storms">Tormentas</button>
         </div>
         <div class="map-type-selector">
-          <button class="map-type-btn active" data-type="osm">OpenStreetMap</button>
+          <button class="map-type-btn active" data-type="osm">Mapa</button>
           <button class="map-type-btn" data-type="satellite">Satélite</button>
-          <button class="map-type-btn" data-type="dark">Modo Oscuro</button>
+          <button class="map-type-btn" data-type="dark">Oscuro</button>
         </div>
         <div id="map"></div>
         <div class="map-legend" id="map-legend"></div>
@@ -171,7 +196,7 @@
       </div>
     </section>
 
-    <!-- HISTORIAL DE ALERTAS -->
+    <!-- HISTORIAL -->
     <section id="historial" class="view">
       <div class="card">
         <div class="card-header">
@@ -208,7 +233,7 @@
             </select>
           </label>
           <label class="setting-item">
-            <span>Activar sonido de alarma</span>
+            <span>Activar sirena de emergencia</span>
             <input type="checkbox" id="cfg-sound" class="toggle" checked />
           </label>
           <label class="setting-item">
@@ -220,7 +245,7 @@
       </div>
 
       <div class="card">
-        <div class="card-header"><h2>Zona de Pruebas del Sistema</h2></div>
+        <div class="card-header"><h2>Zona de Pruebas</h2></div>
         <p class="meta" style="margin-bottom: 16px;">Verifica que todas las funciones respondan correctamente.</p>
         
         <div class="settings-group">
@@ -236,11 +261,16 @@
 
           <button id="btn-test-quake-alert" class="btn-danger">
             <span>3. Simular Alerta de Sismo Real</span>
-            <small>Prueba la pantalla flotante con cuenta regresiva y sonido</small>
+            <small>Prueba la pantalla flotante con sirena y cuenta regresiva</small>
+          </button>
+
+          <button id="btn-test-siren" class="btn-secondary">
+            <span>4. Probar Sirena de Emergencia</span>
+            <small>Escucha el sonido real de la alarma</small>
           </button>
           
           <button id="btn-test-map" class="btn-primary">
-            <span>4. Forzar Recarga del Mapa</span>
+            <span>5. Forzar Recarga del Mapa</span>
             <small>Reinicia el mapa si se ve gris o vacío</small>
           </button>
         </div>
@@ -269,7 +299,7 @@
   </main>
 
   <footer>
-    <p>Datos: USGS, Open-Meteo, NASA EONET, OpenStreetMap</p>
+    <p>Datos: USGS, Open-Meteo, NASA EONET, NOAA, OpenStreetMap</p>
     <p>Monitoreo en tiempo real cada 30 segundos</p>
   </footer>
 
