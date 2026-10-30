@@ -2,82 +2,188 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GlobalAlerts — Clima, Sismos y Eventos Naturales</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="Alertas globales de clima, sismos, incendios y calidad del aire" />
+  <title>GlobalAlerts Pro</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.svg" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+  <!-- TOPBAR -->
   <header class="topbar">
     <div class="brand">
       <span class="logo-mark"></span>
       <h1>GlobalAlerts</h1>
+      <span class="version">PRO</span>
     </div>
-    <nav>
-      <a href="#clima">Clima</a>
-      <a href="#sismos">Sismos</a>
-      <a href="#eventos">Eventos</a>
-    </nav>
-    <div class="status" id="status">Cargando ubicación...</div>
+    <div class="topbar-actions">
+      <button id="btn-notif" class="icon-btn" title="Activar notificaciones">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+      <button id="btn-install" class="icon-btn hidden" title="Instalar app">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <div class="status" id="status">Iniciando...</div>
+    </div>
   </header>
 
+  <!-- TABS -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="dashboard">Dashboard</button>
+    <button class="tab" data-tab="mapa">Mapa</button>
+    <button class="tab" data-tab="clima">Clima</button>
+    <button class="tab" data-tab="sismos">Sismos</button>
+    <button class="tab" data-tab="eventos">Eventos</button>
+    <button class="tab" data-tab="aire">Calidad Aire</button>
+  </nav>
+
   <main>
-    <!-- CLIMA -->
-    <section id="clima" class="panel">
-      <header class="panel-header">
-        <h2>Clima actual</h2>
-        <span class="badge" id="clima-badge">—</span>
-      </header>
-      <div class="grid-2">
-        <div class="stat">
-          <span class="label">Temperatura</span>
-          <strong id="temp">—</strong>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="view active">
+      <div class="grid-stats">
+        <div class="card stat-card">
+          <span class="stat-label">Temperatura</span>
+          <strong id="d-temp" class="stat-value">—</strong>
+          <span class="stat-sub" id="d-loc">Detectando...</span>
         </div>
-        <div class="stat">
-          <span class="label">Sensación térmica</span>
-          <strong id="feels">—</strong>
+        <div class="card stat-card">
+          <span class="stat-label">Sismos 24h</span>
+          <strong id="d-quakes" class="stat-value">—</strong>
+          <span class="stat-sub">Significativos</span>
         </div>
-        <div class="stat">
-          <span class="label">Viento</span>
-          <strong id="wind">—</strong>
+        <div class="card stat-card">
+          <span class="stat-label">Eventos activos</span>
+          <strong id="d-events" class="stat-value">—</strong>
+          <span class="stat-sub">NASA EONET</span>
         </div>
-        <div class="stat">
-          <span class="label">Humedad</span>
-          <strong id="humidity">—</strong>
+        <div class="card stat-card">
+          <span class="stat-label">Calidad aire</span>
+          <strong id="d-aqi" class="stat-value">—</strong>
+          <span class="stat-sub" id="d-aqi-label">—</span>
         </div>
       </div>
-      <p class="meta" id="clima-location">Detectando ubicación...</p>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Alertas cercanas</h2>
+          <span class="badge" id="alerts-badge">—</span>
+        </div>
+        <ul class="list" id="alerts-list"></ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Pronóstico 7 días</h2>
+        </div>
+        <div class="forecast" id="forecast"></div>
+      </div>
+    </section>
+
+    <!-- MAPA -->
+    <section id="mapa" class="view">
+      <div class="card map-card">
+        <div class="map-controls">
+          <button class="map-btn active" data-layer="quakes">Sismos</button>
+          <button class="map-btn" data-layer="fires">Incendios</button>
+          <button class="map-btn" data-layer="storms">Tormentas</button>
+          <button class="map-btn" data-layer="volcanoes">Volcanes</button>
+          <button class="map-btn" data-layer="weather">Clima</button>
+        </div>
+        <div id="map"></div>
+        <div class="map-legend" id="map-legend"></div>
+      </div>
+    </section>
+
+    <!-- CLIMA -->
+    <section id="clima" class="view">
+      <div class="card">
+        <div class="card-header">
+          <h2>Clima actual</h2>
+          <span class="badge" id="w-badge">—</span>
+        </div>
+        <div class="grid-2">
+          <div class="stat"><span class="label">Temperatura</span><strong id="w-temp">—</strong></div>
+          <div class="stat"><span class="label">Sensación</span><strong id="w-feels">—</strong></div>
+          <div class="stat"><span class="label">Viento</span><strong id="w-wind">—</strong></div>
+          <div class="stat"><span class="label">Humedad</span><strong id="w-hum">—</strong></div>
+          <div class="stat"><span class="label">Presión</span><strong id="w-pres">—</strong></div>
+          <div class="stat"><span class="label">UV Index</span><strong id="w-uv">—</strong></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Mapa de precipitación (radar)</h2></div>
+        <div id="weather-map" class="mini-map"></div>
+      </div>
     </section>
 
     <!-- SISMOS -->
-    <section id="sismos" class="panel">
-      <header class="panel-header">
-        <h2>Sismos recientes (últimas 24h)</h2>
-        <span class="badge" id="sismos-badge">—</span>
-      </header>
-      <ul class="list" id="sismos-list">
-        <li class="skeleton"></li>
-        <li class="skeleton"></li>
-        <li class="skeleton"></li>
-      </ul>
+    <section id="sismos" class="view">
+      <div class="card">
+        <div class="card-header">
+          <h2>Sismos recientes</h2>
+          <select id="quake-filter" class="select">
+            <option value="significant_month">Último mes (significativos)</option>
+            <option value="2.5_day">Últimas 24h (M2.5+)</option>
+            <option value="4.5_week">Última semana (M4.5+)</option>
+            <option value="all_hour">Última hora (todos)</option>
+          </select>
+        </div>
+        <ul class="list" id="quakes-list"></ul>
+      </div>
     </section>
 
-    <!-- EVENTOS NASA -->
-    <section id="eventos" class="panel">
-      <header class="panel-header">
-        <h2>Eventos naturales activos</h2>
-        <span class="badge" id="eventos-badge">—</span>
-      </header>
-      <ul class="list" id="eventos-list">
-        <li class="skeleton"></li>
-        <li class="skeleton"></li>
-      </ul>
+    <!-- EVENTOS -->
+    <section id="eventos" class="view">
+      <div class="card">
+        <div class="card-header">
+          <h2>Eventos naturales activos</h2>
+          <span class="badge" id="ev-badge">—</span>
+        </div>
+        <ul class="list" id="events-list"></ul>
+      </div>
     </section>
+
+    <!-- CALIDAD AIRE -->
+    <section id="aire" class="view">
+      <div class="card">
+        <div class="card-header">
+          <h2>Calidad del aire</h2>
+          <span class="badge" id="aqi-badge">—</span>
+        </div>
+        <div class="grid-2">
+          <div class="stat"><span class="label">AQI (PM2.5)</span><strong id="aqi-pm25">—</strong></div>
+          <div class="stat"><span class="label">PM10</span><strong id="aqi-pm10">—</strong></div>
+          <div class="stat"><span class="label">Ozono (O₃)</span><strong id="aqi-o3">—</strong></div>
+          <div class="stat"><span class="label">NO₂</span><strong id="aqi-no2">—</strong></div>
+          <div class="stat"><span class="label">SO₂</span><strong id="aqi-so2">—</strong></div>
+          <div class="stat"><span class="label">CO</span><strong id="aqi-co">—</strong></div>
+        </div>
+        <p class="meta" id="aqi-advice"></p>
+      </div>
+    </section>
+
   </main>
 
   <footer>
-    <p>Datos: USGS · Open-Meteo · NASA EONET — Actualización automática cada 5 min</p>
+    <p>Datos: USGS · Open-Meteo · NASA EONET · OpenStreetMap · Leaflet</p>
+    <p>Actualización automática cada 5 minutos · PWA instalable</p>
   </footer>
 
+  <!-- TOAST -->
+  <div id="toast" class="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
