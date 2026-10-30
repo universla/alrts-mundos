@@ -16,7 +16,7 @@
 </head>
 <body>
 
-  <!-- VENTANA DE EMERGENCIA (Pantalla completa) -->
+  <!-- VENTANA DE EMERGENCIA -->
   <div id="emergency-overlay" class="emergency-overlay hidden">
     <div class="emergency-icon"></div>
     <h1 class="emergency-title">ALERTA DE EMERGENCIA</h1>
@@ -40,11 +40,11 @@
       <button id="btn-install" class="icon-btn hidden" title="Instalar app">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </button>
-      <div class="status" id="status">Iniciando...</div>
+      <div class="status" id="status">Cargando...</div>
     </div>
   </header>
 
-  <!-- PESTAÑAS DE NAVEGACIÓN -->
+  <!-- PESTAÑAS -->
   <nav class="tabs">
     <button class="tab active" data-tab="dashboard">Inicio</button>
     <button class="tab" data-tab="mapa">Mapa</button>
@@ -53,13 +53,13 @@
   </nav>
 
   <main>
-    <!-- VISTA: INICIO -->
+    <!-- INICIO -->
     <section id="dashboard" class="view active">
       <div class="grid-stats">
         <div class="card stat-card">
           <span class="stat-label">Temperatura</span>
           <strong id="d-temp" class="stat-value">--</strong>
-          <span class="stat-sub" id="d-loc">Detectando...</span>
+          <span class="stat-sub" id="d-loc">Cargando...</span>
         </div>
         <div class="card stat-card">
           <span class="stat-label">Sismos (24h)</span>
@@ -87,7 +87,7 @@
       </div>
     </section>
 
-    <!-- VISTA: MAPA -->
+    <!-- MAPA -->
     <section id="mapa" class="view">
       <div class="card map-card">
         <div class="map-controls">
@@ -101,7 +101,7 @@
       </div>
     </section>
 
-    <!-- VISTA: POR PAÍS -->
+    <!-- POR PAÍS -->
     <section id="zonas" class="view">
       <div class="card">
         <div class="card-header">
@@ -121,11 +121,11 @@
       </div>
     </section>
 
-    <!-- VISTA: AJUSTES Y PRUEBAS -->
+    <!-- AJUSTES -->
     <section id="ajustes" class="view">
       <div class="card">
         <div class="card-header"><h2>Zona de Pruebas del Sistema</h2></div>
-        <p class="meta" style="margin-bottom: 16px;">Utiliza estos botones para verificar que todas las funciones de la app responden correctamente.</p>
+        <p class="meta" style="margin-bottom: 16px;">Verifica que todas las funciones respondan correctamente.</p>
         
         <div class="settings-group">
           <button id="btn-test-notif" class="btn-secondary">
@@ -135,12 +135,12 @@
           
           <button id="btn-test-emergency" class="btn-danger">
             <span>2. Probar Ventana de Emergencia</span>
-            <small>Activa la pantalla completa roja y la vibración del celular</small>
+            <small>Activa la pantalla completa roja y la vibración</small>
           </button>
           
           <button id="btn-test-map" class="btn-primary">
             <span>3. Forzar Recarga del Mapa</span>
-            <small>Reinicia el mapa si se ve gris o no carga los marcadores</small>
+            <small>Reinicia el mapa si se ve gris o vacío</small>
           </button>
         </div>
       </div>
@@ -149,14 +149,15 @@
         <div class="card-header"><h2>Configuración General</h2></div>
         <div class="settings-group">
           <label class="setting-item">
-            <span>Activar notificaciones automáticas</span>
-            <input type="checkbox" id="cfg-notif" class="toggle" />
-          </label>
-          <label class="setting-item">
             <span>País predeterminado</span>
             <select id="cfg-country" class="select" style="width: auto;">
               <option value="Mexico">México</option>
               <option value="Chile">Chile</option>
+              <option value="Peru">Perú</option>
+              <option value="Argentina">Argentina</option>
+              <option value="Colombia">Colombia</option>
+              <option value="Espana">España</option>
+              <option value="Japon">Japón</option>
               <option value="Global">Global</option>
             </select>
           </label>
