@@ -10,6 +10,20 @@ let currentLayer = null;
 let baseLayer = null;
 let deferredPrompt = null;
 
+// Sistema de alertas sísmicas
+let alertConfig = {
+  minMagnitude: 4.5,
+  maxDistance: 500,
+  soundEnabled: true,
+  vibrationEnabled: true
+};
+
+let monitoredQuakeIds = new Set();
+let alertHistory = [];
+let countdownInterval = null;
+let audioContext = null;
+let alarmOscillator = null;
+
 // ==========================================
 // TOAST
 // ==========================================
@@ -19,6 +33,261 @@ function toast(msg, duration = 3000) {
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), duration);
+}
+
+// ==========================================
+// SISTEMA DE AUDIO PARA ALARMA
+// ==========================================
+function initAudio() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function playAlarmSound() {
+  if (!alertConfig.soundEnabled) return;
+  
+  initAudio();
+  
+  // Crear oscilador para tono de alarma
+  alarmOscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  alarmOscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  alarmOscillator.type = 'square';
+  alarmOscillator.frequency.setValueAtTime(880, audioContext.currentTime); // La (A5)
+  
+  // Patrón de alarma: beep-beep-beep
+  const now = audioContext.currentTime;
+  gainNode.gain.setValueAtTime(0.3, now);
+  gainNode.gain.setValueAtTime(0, now + 0.2);
+  gainNode.gain.setValueAtTime(0.3, now + 0.3);
+  gainNode.gain.setValueAtTime(0, now + 0.5);
+  gainNode.gain.setValueAtTime(0.3, now + 0.6);
+  gainNode.gain.setValueAtTime(0, now + 0.8);
+  
+  alarmOscillator.start(now);
+  alarmOscillator.stop(now + 1);
+  
+  // Repetir alarma cada 2 segundos
+  setTimeout(() => {
+    if ($("#quake-alert-overlay") && !$("#quake-alert-overlay").classList.contains("hidden")) {
+      playAlarmSound();
+    }
+  }, 2000);
+}
+
+function stopAlarmSound() {
+  if (alarmOscillator) {
+    try {
+      alarmOscillator.stop();
+    } catch(e) {}
+    alarmOscillator = null;
+  }
+}
+
+// ==========================================
+// VIBRACIÓN DE EMERGENCIA
+// ==========================================
+function emergencyVibration() {
+  if (!alertConfig.vibrationEnabled) return;
+  if (!navigator.vibrate) return;
+  
+  // Patrón SOS: corto-corto-corto-largo-largo-largo-corto-corto-corto
+  const sosPattern = [100, 100, 100, 100, 100, 100, 300, 100, 300, 100, 300, 100, 100, 100, 100, 100, 100, 100];
+  navigator.vibrate(sosPattern);
+  
+  // Repetir cada 3 segundos
+  setTimeout(() => {
+    if ($("#quake-alert-overlay") && !$("#quake-alert-overlay").classList.contains("hidden")) {
+      emergencyVibration();
+    }
+  }, 3000);
+}
+
+function stopVibration() {
+  if (navigator.vibrate) {
+    navigator.vibrate(0);
+  }
+}
+
+// ==========================================
+// CÁLCULO DE TIEMPO DE LLEGADA DE ONDAS
+// ==========================================
+function calculateArrivalTime(distanceKm, magnitude) {
+  // Velocidad aproximada de ondas P: 6 km/s
+  // Velocidad aproximada de ondas S: 3.5 km/s
+  // Usamos ondas S (más destructivas) para el cálculo
+  
+  const waveSpeed = 3.5; // km/s
+  const timeSeconds = distanceKm / waveSpeed;
+  
+  return Math.max(0, Math.round(timeSeconds));
+}
+
+function formatCountdown(seconds) {
+  if (seconds <= 0) return "00:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// ==========================================
+// PANTALLA FLOTANTE DE ALERTA SÍSMICA
+// ==========================================
+function triggerQuakeAlert(quake) {
+  const [lon, lat] = quake.geometry.coordinates;
+  const distance = distanceKm(userLat, userLon, lat, lon);
+  const arrivalTime = calculateArrivalTime(distance, quake.properties.mag);
+  
+  // Actualizar información en la pantalla
+  $("#alert-magnitude").textContent = `M ${quake.properties.mag.toFixed(1)}`;
+  $("#alert-location").textContent = quake.properties.place;
+  $("#alert-distance").textContent = `${Math.round(distance)} km de distancia`;
+  
+  // Mostrar pantalla
+  $("#quake-alert-overlay").classList.remove("hidden");
+  
+  // Iniciar cuenta regresiva
+  let remaining = arrivalTime;
+  $("#alert-countdown").textContent = formatCountdown(remaining);
+  
+  if (countdownInterval) clearInterval(countdownInterval);
+  countdownInterval = setInterval(() => {
+    remaining--;
+    $("#alert-countdown").textContent = formatCountdown(remaining);
+    
+    if (remaining <= 0) {
+      clearInterval(countdownInterval);
+      $("#alert-countdown").textContent = "00:00";
+      $("#countdown-sub").textContent = "Ondas sísmicas llegando";
+    }
+  }, 1000);
+  
+  // Activar alarma sonora y vibración
+  playAlarmSound();
+  emergencyVibration();
+  
+  // Enviar notificación push
+  if (Notification.permission === "granted") {
+    new Notification("¡SISMO DETECTADO!", {
+      body: `M ${quake.properties.mag.toFixed(1)} - ${quake.properties.place}\n${Math.round(distance)} km de distancia`,
+      icon: "icons/icon-192.svg",
+      vibrate: [500, 200, 500],
+      tag: "quake-alert"
+    });
+  }
+  
+  // Agregar al historial
+  addToAlertHistory(quake, distance);
+  
+  console.log("Alerta de sismo activada:", quake.properties.place);
+}
+
+function closeQuakeAlert() {
+  $("#quake-alert-overlay").classList.add("hidden");
+  if (countdownInterval) clearInterval(countdownInterval);
+  stopAlarmSound();
+  stopVibration();
+}
+
+$("#btn-close-quake-alert").addEventListener("click", closeQuakeAlert);
+
+// ==========================================
+// HISTORIAL DE ALERTAS
+// ==========================================
+function addToAlertHistory(quake, distance) {
+  const alert = {
+    id: quake.id,
+    magnitude: quake.properties.mag,
+    place: quake.properties.place,
+    distance: distance,
+    time: new Date(quake.properties.time),
+    timestamp: Date.now()
+  };
+  
+  alertHistory.unshift(alert);
+  if (alertHistory.length > 50) alertHistory.pop(); // Mantener últimos 50
+  
+  localStorage.setItem('ga_alert_history', JSON.stringify(alertHistory));
+  renderAlertHistory();
+}
+
+function renderAlertHistory() {
+  const list = $("#alert-history-list");
+  if (!list) return;
+  
+  if (alertHistory.length === 0) {
+    list.innerHTML = `<li style="justify-content:center;color:var(--text-dim)">Sin alertas registradas</li>`;
+    return;
+  }
+  
+  list.innerHTML = "";
+  alertHistory.forEach(alert => {
+    const li = document.createElement("li");
+    li.className = "history-item";
+    li.innerHTML = `
+      <div style="flex:1;min-width:0">
+        <div class="item-title">M ${alert.magnitude.toFixed(1)} - ${alert.place}</div>
+        <div class="item-meta">${Math.round(alert.distance)} km de distancia</div>
+        <div class="history-time">${alert.time.toLocaleString("es-ES")}</div>
+      </div>
+      <span class="item-tag ${alert.magnitude >= 5 ? 'tag-high' : 'tag-med'}">Alerta</span>
+    `;
+    list.appendChild(li);
+  });
+}
+
+$("#btn-clear-history").addEventListener("click", () => {
+  alertHistory = [];
+  localStorage.removeItem('ga_alert_history');
+  renderAlertHistory();
+  toast("Historial limpiado");
+});
+
+// ==========================================
+// MONITOREO DE SISMOS EN TIEMPO REAL
+// ==========================================
+async function monitorQuakes() {
+  try {
+    const response = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson");
+    if (!response.ok) throw new Error("HTTP error");
+    const data = await response.json();
+    
+    $("#last-check").textContent = new Date().toLocaleTimeString("es-ES");
+    $("#monitored-quakes").textContent = data.features.length;
+    
+    // Revisar cada sismo
+    data.features.forEach(quake => {
+      const quakeId = quake.id;
+      
+      // Si ya fue monitoreado, saltar
+      if (monitoredQuakeIds.has(quakeId)) return;
+      
+      const [lon, lat] = quake.geometry.coordinates;
+      const distance = distanceKm(userLat, userLon, lat, lon);
+      const magnitude = quake.properties.mag;
+      
+      // Verificar si cumple los criterios de alerta
+      if (magnitude >= alertConfig.minMagnitude && distance <= alertConfig.maxDistance) {
+        console.log(`Sismo detectado: M${magnitude.toFixed(1)} a ${Math.round(distance)} km`);
+        
+        // Marcar como monitoreado
+        monitoredQuakeIds.add(quakeId);
+        
+        // Activar alerta
+        triggerQuakeAlert(quake);
+      } else {
+        // Marcar como revisado (no alerta)
+        monitoredQuakeIds.add(quakeId);
+      }
+    });
+    
+  } catch (e) {
+    console.error("Error en monitoreo:", e);
+  }
 }
 
 // ==========================================
@@ -32,18 +301,20 @@ $$(".tab").forEach(tab => {
     const target = $(`#${tab.dataset.tab}`);
     if (target) target.classList.add("active");
     
-    // CRÍTICO: Forzar recálculo del tamaño del mapa
     if (tab.dataset.tab === "mapa" && map) {
       setTimeout(() => {
         map.invalidateSize();
-        console.log("Mapa redimensionado");
       }, 200);
+    }
+    
+    if (tab.dataset.tab === "historial") {
+      renderAlertHistory();
     }
   });
 });
 
 // ==========================================
-// CAPAS DE MAPA DISPONIBLES
+// CAPAS DE MAPA
 // ==========================================
 const mapLayers = {
   osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -61,17 +332,10 @@ const mapLayers = {
   })
 };
 
-// ==========================================
-// INICIALIZAR MAPA
-// ==========================================
 function initMap() {
-  if (map) {
-    console.log("Mapa ya inicializado");
-    return;
-  }
+  if (map) return;
 
   try {
-    // Crear mapa
     map = L.map("map", { 
       zoomControl: true, 
       worldCopyJump: true,
@@ -81,19 +345,10 @@ function initMap() {
       maxZoom: 19
     });
     
-    // Agregar capa base (OpenStreetMap por defecto)
     baseLayer = mapLayers.osm;
     baseLayer.addTo(map);
     
-    console.log("Mapa inicializado con OpenStreetMap");
-    
-    // Forzar renderizado después de un momento
-    setTimeout(() => {
-      map.invalidateSize();
-      console.log("Mapa renderizado correctamente");
-    }, 300);
-    
-    // Cargar datos iniciales
+    setTimeout(() => map.invalidateSize(), 300);
     loadMapLayer("quakes");
     
   } catch (e) {
@@ -102,57 +357,30 @@ function initMap() {
   }
 }
 
-// ==========================================
-// CAMBIAR TIPO DE MAPA
-// ==========================================
 function changeMapType(type) {
   if (!map || !mapLayers[type]) return;
   
-  // Remover capa base actual
-  if (baseLayer) {
-    map.removeLayer(baseLayer);
-  }
-  
-  // Agregar nueva capa base
+  if (baseLayer) map.removeLayer(baseLayer);
   baseLayer = mapLayers[type];
   baseLayer.addTo(map);
   
-  // Mover capa de datos al frente
-  if (currentLayer) {
-    currentLayer.bringToFront();
-  }
-  
-  console.log(`Tipo de mapa cambiado a: ${type}`);
+  if (currentLayer) currentLayer.bringToFront();
   toast(`Mapa: ${type === 'osm' ? 'OpenStreetMap' : type === 'satellite' ? 'Satélite' : 'Modo Oscuro'}`);
 }
 
-// ==========================================
-// CARGAR CAPA DE DATOS (Sismos, Eventos, etc.)
-// ==========================================
 async function loadMapLayer(type) {
-  if (!map) {
-    console.error("Mapa no inicializado");
-    return;
-  }
+  if (!map) return;
   
-  // Remover capa anterior
   if (currentLayer) {
-    try { 
-      map.removeLayer(currentLayer); 
-    } catch(e) {
-      console.warn("Error al remover capa:", e);
-    }
+    try { map.removeLayer(currentLayer); } catch(e) {}
     currentLayer = null;
   }
 
   try {
     if (type === "quakes") {
-      console.log("Cargando sismos...");
       const r = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson");
       if (!r.ok) throw new Error("HTTP " + r.status);
       const d = await r.json();
-      
-      console.log(`Sismos cargados: ${d.features.length}`);
       
       currentLayer = L.geoJSON(d, {
         pointToLayer: (f, latlng) => {
@@ -173,7 +401,7 @@ async function loadMapLayer(type) {
           layer.bindPopup(`
             <strong>Magnitud: ${p.mag.toFixed(1)}</strong><br>
             <strong>${p.place}</strong><br>
-            <small> ${time}</small><br>
+            <small>${time}</small><br>
             <a href="${p.url}" target="_blank" style="color:#58a6ff;text-decoration:none;">Ver detalles →</a>
           `);
         }
@@ -186,7 +414,6 @@ async function loadMapLayer(type) {
       `;
       
     } else {
-      console.log(`Cargando eventos: ${type}`);
       const r = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=50");
       if (!r.ok) throw new Error("HTTP " + r.status);
       const d = await r.json();
@@ -206,8 +433,6 @@ async function loadMapLayer(type) {
           properties: { title: ev.title, category: cat.title, id: cat.id }
         });
       });
-
-      console.log(`Eventos cargados: ${features.length}`);
 
       currentLayer = L.geoJSON(features, {
         pointToLayer: (f, latlng) => {
@@ -234,8 +459,6 @@ async function loadMapLayer(type) {
       $("#map-legend").innerHTML = `<div class="legend-item"><span class="legend-dot" style="background:${colors[type] || '#58a6ff'}"></span>${names[type] || 'Eventos'}</div>`;
     }
     
-    console.log("Capa de datos cargada correctamente");
-    
   } catch (e) {
     console.error("Error al cargar capa:", e);
     toast("Error al cargar datos del mapa");
@@ -250,7 +473,6 @@ async function loadDashboard() {
     $("#status").textContent = userCity;
     $("#d-loc").textContent = userCity;
 
-    // Temperatura
     try {
       const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${userLat}&longitude=${userLon}&current=temperature_2m,weather_code&timezone=auto`);
       if (w.ok) {
@@ -259,7 +481,6 @@ async function loadDashboard() {
       }
     } catch(e) { console.warn("Weather error", e); }
 
-    // Calidad aire
     try {
       const aqi = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${userLat}&longitude=${userLon}&current=pm2_5`);
       if (aqi.ok) {
@@ -270,7 +491,6 @@ async function loadDashboard() {
       }
     } catch(e) { console.warn("AQI error", e); }
 
-    // Sismos
     try {
       const q = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson");
       if (q.ok) {
@@ -279,7 +499,6 @@ async function loadDashboard() {
       }
     } catch(e) { console.warn("Quakes error", e); }
 
-    // Eventos NASA
     try {
       const ev = await fetch("https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=1");
       if (ev.ok) {
@@ -288,7 +507,6 @@ async function loadDashboard() {
       }
     } catch(e) { console.warn("Events error", e); }
 
-    // Alertas cercanas
     try {
       const q24 = await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson");
       if (q24.ok) {
@@ -334,9 +552,6 @@ function distanceKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// ==========================================
-// ZONAS / PAÍS
-// ==========================================
 async function loadZoneData(country) {
   const qList = $("#zone-quakes-list");
   if (!qList) return;
@@ -376,7 +591,7 @@ async function loadZoneData(country) {
 }
 
 // ==========================================
-// EMERGENCIA
+// EMERGENCIA MANUAL
 // ==========================================
 function triggerEmergency(message, details) {
   const overlay = $("#emergency-overlay");
@@ -423,6 +638,22 @@ $("#btn-test-emergency").addEventListener("click", () => {
   );
 });
 
+$("#btn-test-quake-alert").addEventListener("click", () => {
+  // Simular un sismo de prueba
+  const testQuake = {
+    id: "test-" + Date.now(),
+    geometry: {
+      coordinates: [userLon + 0.5, userLat + 0.5, 10]
+    },
+    properties: {
+      mag: 5.8,
+      place: "Zona de prueba - 50 km al noreste",
+      time: Date.now()
+    }
+  };
+  triggerQuakeAlert(testQuake);
+});
+
 $("#btn-test-map").addEventListener("click", () => {
   toast("Recargando mapa...");
   if (map) {
@@ -434,7 +665,31 @@ $("#btn-test-map").addEventListener("click", () => {
 });
 
 // ==========================================
-// CONFIGURACIÓN
+// CONFIGURACIÓN DE ALERTAS
+// ==========================================
+function loadAlertConfig() {
+  const saved = localStorage.getItem('ga_alert_config');
+  if (saved) {
+    alertConfig = JSON.parse(saved);
+    $("#cfg-magnitude").value = alertConfig.minMagnitude;
+    $("#cfg-distance").value = alertConfig.maxDistance;
+    $("#cfg-sound").checked = alertConfig.soundEnabled;
+    $("#cfg-vibration").checked = alertConfig.vibrationEnabled;
+  }
+}
+
+$("#btn-save-alert-config").addEventListener("click", () => {
+  alertConfig.minMagnitude = parseFloat($("#cfg-magnitude").value);
+  alertConfig.maxDistance = parseInt($("#cfg-distance").value);
+  alertConfig.soundEnabled = $("#cfg-sound").checked;
+  alertConfig.vibrationEnabled = $("#cfg-vibration").checked;
+  
+  localStorage.setItem('ga_alert_config', JSON.stringify(alertConfig));
+  toast("Configuración de alertas guardada");
+});
+
+// ==========================================
+// CONFIGURACIÓN GENERAL
 // ==========================================
 function loadSettings() {
   const savedCountry = localStorage.getItem('ga_country') || 'Mexico';
@@ -475,7 +730,7 @@ $("#btn-install").addEventListener("click", async () => {
 });
 
 // ==========================================
-// EVENTOS DE BOTONES DEL MAPA
+// EVENTOS DE BOTONES
 // ==========================================
 $$(".map-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -499,20 +754,30 @@ $("#country-filter").addEventListener("change", (e) => loadZoneData(e.target.val
 // INICIALIZACIÓN
 // ==========================================
 async function init() {
-  console.log("=== Iniciando GlobalAlerts ===");
+  console.log("=== Iniciando GlobalAlerts Pro ===");
   
-  // 1. Inicializar mapa
-  initMap();
-  
-  // 2. Cargar datos inmediatamente
-  await loadDashboard();
-  loadZoneData("Mexico");
+  // Cargar configuraciones guardadas
+  loadAlertConfig();
   loadSettings();
   
-  toast("Sistema cargado correctamente");
-  console.log("Datos iniciales cargados");
+  // Cargar historial
+  const savedHistory = localStorage.getItem('ga_alert_history');
+  if (savedHistory) {
+    alertHistory = JSON.parse(savedHistory);
+  }
+  
+  // Inicializar mapa
+  initMap();
+  
+  // Cargar datos iniciales
+  await loadDashboard();
+  loadZoneData("Mexico");
+  renderAlertHistory();
+  
+  toast("Sistema de monitoreo activado");
+  console.log("Monitoreo de sismos iniciado");
 
-  // 3. Intentar obtener ubicación real
+  // Obtener ubicación real
   if ("geolocation" in navigator) {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -533,7 +798,6 @@ async function init() {
         if (map) {
           map.setView([userLat, userLon], 6);
           
-          // Marcador de usuario
           const userIcon = L.divIcon({
             className: "user-marker",
             html: '<div class="user-marker-core"></div>',
@@ -545,9 +809,8 @@ async function init() {
             .bindPopup(`<strong>📍 ${userCity}</strong>`);
         }
         
-        // Recargar datos con ubicación real
         await loadDashboard();
-        console.log("Ubicación real detectada:", userCity);
+        console.log("Ubicación real:", userCity);
       },
       (err) => {
         console.warn("Geolocalización no disponible:", err.message);
@@ -556,9 +819,19 @@ async function init() {
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
     );
   }
+  
+  // Iniciar monitoreo de sismos cada 30 segundos
+  monitorQuakes();
+  setInterval(monitorQuakes, 30000);
+  
+  // Solicitar permiso de notificaciones
+  if ("Notification" in window && Notification.permission === "default") {
+    setTimeout(() => {
+      Notification.requestPermission();
+    }, 3000);
+  }
 }
 
-// Ejecutar init
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", init);
 } else {
