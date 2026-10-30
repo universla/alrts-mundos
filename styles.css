@@ -385,3 +385,273 @@ footer { text-align: center; padding: 24px 20px; color: var(--text-muted); font-
     padding: 5px 10px;
   }
 }
+
+/* ===== PANTALLA FLOTANTE DE ALERTA SÍSMICA ===== */
+.quake-alert-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: linear-gradient(135deg, rgba(13,17,23,0.98), rgba(40,10,10,0.98));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: quakeAlertBg 1.5s infinite;
+  overflow-y: auto;
+}
+
+.quake-alert-overlay.hidden { display: none; }
+
+@keyframes quakeAlertBg {
+  0%, 100% { background: linear-gradient(135deg, rgba(13,17,23,0.98), rgba(40,10,10,0.98)); }
+  50% { background: linear-gradient(135deg, rgba(40,10,10,0.99), rgba(13,17,23,0.98)); }
+}
+
+.quake-alert-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.quake-alert-icon {
+  width: 100px;
+  height: 100px;
+  background: var(--red);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  animation: quakePulse 0.8s infinite;
+  box-shadow: 0 0 60px rgba(248, 81, 73, 0.8);
+}
+
+.quake-alert-icon::before {
+  content: "⚠";
+  font-size: 60px;
+  font-weight: 900;
+  color: white;
+}
+
+@keyframes quakePulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(248, 81, 73, 0.8); }
+  50% { transform: scale(1.15); box-shadow: 0 0 100px rgba(248, 81, 73, 1); }
+}
+
+.quake-alert-title {
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--red);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-align: center;
+  animation: titleFlash 1s infinite;
+}
+
+@keyframes titleFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.quake-alert-info {
+  background: var(--bg-2);
+  border: 2px solid var(--red);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 32px;
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.quake-magnitude {
+  font-size: 48px;
+  font-weight: 900;
+  color: var(--red);
+  margin-bottom: 8px;
+}
+
+.quake-location {
+  font-size: 18px;
+  color: var(--text);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.quake-distance {
+  font-size: 16px;
+  color: var(--text-dim);
+}
+
+.quake-countdown {
+  background: rgba(248, 81, 73, 0.1);
+  border: 2px solid var(--red);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 32px;
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.countdown-label {
+  font-size: 14px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.countdown-timer {
+  font-size: 64px;
+  font-weight: 900;
+  color: var(--red);
+  font-family: 'Courier New', monospace;
+  margin-bottom: 8px;
+  animation: countdownPulse 1s infinite;
+}
+
+@keyframes countdownPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.countdown-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.quake-instructions {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 32px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.quake-instructions h3 {
+  color: var(--accent);
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.quake-instructions ul {
+  list-style: none;
+  padding: 0;
+}
+
+.quake-instructions li {
+  padding: 8px 0;
+  color: var(--text);
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.quake-instructions li:last-child { border-bottom: none; }
+
+.quake-instructions li::before {
+  content: "✓ ";
+  color: var(--green);
+  font-weight: 700;
+}
+
+.btn-close-alert {
+  padding: 18px 48px;
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(248, 81, 73, 0.5);
+}
+
+.btn-close-alert:hover {
+  background: #da3633;
+  transform: scale(1.05);
+  box-shadow: 0 6px 30px rgba(248, 81, 73, 0.7);
+}
+
+/* ===== STATUS CARD ===== */
+.alert-status-card {
+  background: linear-gradient(135deg, rgba(63,185,80,0.1), rgba(63,185,80,0.05));
+  border: 1px solid rgba(63,185,80,0.3);
+}
+
+.alert-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.alert-status-header h3 {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.status-indicator {
+  font-size: 12px;
+  color: var(--green);
+  font-weight: 600;
+  animation: statusPulse 2s infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.alert-status-info {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.alert-status-info p {
+  margin: 4px 0;
+}
+
+/* ===== HISTORIAL ===== */
+.history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.btn-small {
+  padding: 6px 12px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-small:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+  .quake-alert-title { font-size: 28px; }
+  .quake-magnitude { font-size: 40px; }
+  .countdown-timer { font-size: 48px; }
+  .quake-alert-icon { width: 80px; height: 80px; }
+  .quake-alert-icon::before { font-size: 48px; }
+}
