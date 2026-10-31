@@ -2,10 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0e1a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="Sistema profesional de alertas y emergencias globales" />
   <title>GlobalAlerts Pro</title>
 
   <link rel="manifest" href="manifest.json" />
@@ -17,394 +18,494 @@
 </head>
 <body>
 
-  <!-- OVERLAY DE BLOQUEO POR ALERTA OFICIAL -->
-  <div id="official-alert-lock" class="official-alert-lock hidden">
-    <div class="lock-background"></div>
-    <div class="lock-content">
-      <div class="lock-header">
-        <div class="lock-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+  <!-- OVERLAY DE BLOQUEO OFICIAL -->
+  <div id="official-lock" class="official-lock hidden">
+    <div class="lock-bg"></div>
+    <div class="lock-box">
+      <div class="lock-top">
+        <div class="lock-icon-circle">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
         </div>
         <div class="lock-badge">ALERTA OFICIAL</div>
       </div>
-      
-      <div class="lock-alert-info">
-        <div class="lock-country" id="lock-country">🇲🇽 MÉXICO</div>
-        <div class="lock-title" id="lock-title">ALERTA SÍSMICA NACIONAL</div>
-        <div class="lock-time" id="lock-time">Hace 2 minutos</div>
-      </div>
-
-      <div class="lock-message" id="lock-message">
-        Se ha detectado un sismo de magnitud 6.2 con epicentro en la costa de Guerrero. 
-        Se recomienda mantener la calma y seguir los protocolos de seguridad.
-      </div>
-
-      <div class="lock-instructions">
+      <div class="lock-country" id="lock-country"></div>
+      <h1 class="lock-title" id="lock-title"></h1>
+      <div class="lock-time" id="lock-time"></div>
+      <div class="lock-msg" id="lock-msg"></div>
+      <div class="lock-steps">
         <h4>Acciones inmediatas:</h4>
-        <ul>
-          <li>Aléjese de ventanas y objetos pesados</li>
-          <li>No use elevadores</li>
-          <li>Diríjase a zonas de menor riesgo</li>
-          <li>Esté atento a réplicas</li>
-        </ul>
+        <ul id="lock-steps-list"></ul>
       </div>
-
-      <div class="lock-timer">
-        <div class="timer-label">La app se desbloqueará en:</div>
-        <div class="timer-count" id="lock-timer">30</div>
-        <div class="timer-sub">segundos</div>
+      <div class="lock-timer-box">
+        <div class="lock-timer-label">Desbloqueo en:</div>
+        <div class="lock-timer-num" id="lock-timer">30</div>
+        <div class="lock-timer-sub">segundos</div>
       </div>
-
-      <button id="btn-acknowledge-alert" class="btn-acknowledge" disabled>
-        HE LEÍDO LA ALERTA (30s)
-      </button>
+      <button id="btn-unlock" class="btn-unlock" disabled>ESPERE...</button>
     </div>
   </div>
 
-  <!-- ALERTA SÍSMICA FLOTANTE -->
-  <div id="quake-alert-overlay" class="quake-alert-overlay hidden">
-    <div class="quake-alert-header">
-      <div class="quake-alert-icon">
-        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+  <!-- ALERTA SÍSMICA -->
+  <div id="quake-overlay" class="quake-overlay hidden">
+    <div class="quake-top">
+      <div class="quake-icon">
+        <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
           <line x1="12" y1="9" x2="12" y2="13"/>
           <line x1="12" y1="17" x2="12.01" y2="17"/>
         </svg>
       </div>
-      <h1 class="quake-alert-title">¡SISMO DETECTADO!</h1>
-      <p class="quake-alert-subtitle">ALERTA TEMPRANA ACTIVADA</p>
+      <h1>SISMO DETECTADO</h1>
+      <p>ALERTA TEMPRANA</p>
     </div>
-    
-    <div class="quake-alert-info">
-      <div class="quake-magnitude" id="alert-magnitude">M --</div>
-      <div class="quake-location" id="alert-location">Ubicando...</div>
-      <div class="quake-distance" id="alert-distance">-- km de distancia</div>
-      <div class="quake-depth" id="alert-depth">Profundidad: -- km</div>
+    <div class="quake-data">
+      <div class="quake-mag" id="q-mag">M --</div>
+      <div class="quake-place" id="q-place">--</div>
+      <div class="quake-dist" id="q-dist">-- km</div>
+      <div class="quake-depth" id="q-depth">--</div>
     </div>
-
-    <div class="quake-countdown">
-      <div class="countdown-label">Tiempo estimado de llegada</div>
-      <div class="countdown-timer" id="alert-countdown">--:--</div>
-      <div class="countdown-sub" id="countdown-sub">Calculando...</div>
+    <div class="quake-cd">
+      <div class="cd-label">Llegada de ondas S</div>
+      <div class="cd-num" id="q-cd">--:--</div>
+      <div class="cd-sub" id="q-cd-sub">Calculando...</div>
     </div>
-
-    <div class="quake-actions">
-      <button id="btn-silence-alarm" class="btn-silence">SILENCIAR</button>
-      <button id="btn-close-quake-alert" class="btn-close-alert">CERRAR</button>
+    <div class="quake-btns">
+      <button id="btn-silence" class="btn-silence">SILENCIAR</button>
+      <button id="btn-close-q" class="btn-close">CERRAR</button>
     </div>
   </div>
 
-  <!-- BARRA SUPERIOR -->
+  <!-- TOPBAR -->
   <header class="topbar">
-    <div class="topbar-left">
-      <div class="logo-container">
-        <div class="logo-mark"></div>
-        <div class="logo-text">
-          <h1>GlobalAlerts</h1>
-          <span class="version-badge">PRO</span>
-        </div>
+    <div class="top-left">
+      <div class="logo"></div>
+      <div>
+        <h1>GlobalAlerts</h1>
+        <span class="ver">PRO</span>
       </div>
     </div>
-    <div class="topbar-right">
-      <button id="btn-notifications" class="icon-btn" title="Notificaciones">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    <div class="top-right">
+      <button id="btn-panic" class="panic-btn" title="Emergencia">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
         </svg>
-        <span class="notification-dot hidden"></span>
       </button>
-      <div class="status-indicator" id="status">Cargando...</div>
+      <div class="loc-badge" id="loc-badge">--</div>
     </div>
   </header>
 
-  <!-- CONTENIDO PRINCIPAL -->
-  <main class="main-content">
-    
+  <!-- TABS -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="home">Inicio</button>
+    <button class="tab" data-tab="map">Mapa</button>
+    <button class="tab" data-tab="weather">Clima</button>
+    <button class="tab" data-tab="news">Noticias</button>
+    <button class="tab" data-tab="tools">Herramientas</button>
+    <button class="tab" data-tab="settings">Ajustes</button>
+  </nav>
+
+  <main>
     <!-- INICIO -->
-    <section id="dashboard" class="view active">
-      <!-- Banner de alerta activa -->
-      <div id="active-alert-banner" class="active-alert-banner hidden">
-        <div class="alert-banner-content">
-          <div class="alert-banner-icon">⚠️</div>
-          <div class="alert-banner-text">
-            <strong id="alert-banner-title">Alerta activa</strong>
-            <span id="alert-banner-subtitle">Ver detalles</span>
-          </div>
-          <button id="btn-view-alert" class="btn-banner">VER</button>
+    <section id="home" class="view active">
+      <div id="alert-banner" class="alert-banner hidden">
+        <div class="ab-icon">!</div>
+        <div class="ab-text">
+          <strong id="ab-title">Alerta activa</strong>
+          <span id="ab-sub">Ver detalles</span>
         </div>
       </div>
 
-      <!-- Stats Grid -->
-      <div class="stats-grid">
-        <div class="stat-card glass">
-          <div class="stat-icon temp">🌡️</div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-ic temp"></div>
           <div class="stat-info">
-            <span class="stat-label">Temperatura</span>
-            <strong class="stat-value" id="d-temp">--</strong>
-            <span class="stat-sub" id="d-loc">Cargando...</span>
+            <span class="stat-l">Temperatura</span>
+            <strong class="stat-v" id="s-temp">--</strong>
+            <span class="stat-s" id="s-loc">--</span>
           </div>
         </div>
-        <div class="stat-card glass">
-          <div class="stat-icon quake">📊</div>
+        <div class="stat">
+          <div class="stat-ic quake"></div>
           <div class="stat-info">
-            <span class="stat-label">Sismos 24h</span>
-            <strong class="stat-value" id="d-quakes">--</strong>
-            <span class="stat-sub">Significativos</span>
+            <span class="stat-l">Sismos 24h</span>
+            <strong class="stat-v" id="s-q">--</strong>
+            <span class="stat-s">significativos</span>
           </div>
         </div>
-        <div class="stat-card glass">
-          <div class="stat-icon air">💨</div>
+        <div class="stat">
+          <div class="stat-ic air"></div>
           <div class="stat-info">
-            <span class="stat-label">Calidad Aire</span>
-            <strong class="stat-value" id="d-aqi">--</strong>
-            <span class="stat-sub" id="d-aqi-label">--</span>
+            <span class="stat-l">Aire (PM2.5)</span>
+            <strong class="stat-v" id="s-aqi">--</strong>
+            <span class="stat-s" id="s-aqi-l">--</span>
           </div>
         </div>
-        <div class="stat-card glass">
-          <div class="stat-icon events">🌍</div>
+        <div class="stat">
+          <div class="stat-ic uv"></div>
           <div class="stat-info">
-            <span class="stat-label">Eventos</span>
-            <strong class="stat-value" id="d-events">--</strong>
-            <span class="stat-sub">Activos</span>
+            <span class="stat-l">Índice UV</span>
+            <strong class="stat-v" id="s-uv">--</strong>
+            <span class="stat-s" id="s-uv-l">--</span>
           </div>
         </div>
       </div>
 
-      <!-- Alertas cercanas -->
-      <div class="section-card">
-        <div class="section-header">
-          <h2>Alertas Cercanas</h2>
-          <span class="badge" id="alerts-badge">--</span>
+      <div class="card">
+        <div class="card-h">
+          <h2>Alertas cercanas</h2>
+          <span class="badge" id="alerts-n">0</span>
         </div>
-        <div class="list-container" id="alerts-list"></div>
+        <div class="list" id="alerts-list"></div>
       </div>
 
-      <!-- Estado del sistema -->
-      <div class="section-card system-status">
-        <div class="status-header">
-          <div class="status-icon">🛰️</div>
-          <div class="status-info">
-            <h3>Sistema de Monitoreo</h3>
-            <span class="status-badge active">● Activo</span>
-          </div>
+      <div class="card">
+        <div class="card-h"><h2>Pronóstico 7 días</h2></div>
+        <div class="forecast" id="forecast"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Por hora (24h)</h2></div>
+        <div class="hourly" id="hourly"></div>
+      </div>
+
+      <div class="card status-card">
+        <div class="sc-head">
+          <h3>Monitoreo activo</h3>
+          <span class="sc-dot"></span>
         </div>
-        <div class="status-details">
-          <div class="status-item">
-            <span>Última revisión</span>
-            <strong id="last-check">--</strong>
-          </div>
-          <div class="status-item">
-            <span>Sismos monitoreados</span>
-            <strong id="monitored-quakes">0</strong>
-          </div>
+        <div class="sc-body">
+          <div><span>Última revisión</span><strong id="sc-time">--</strong></div>
+          <div><span>Sismos monitoreados</span><strong id="sc-n">0</strong></div>
+          <div><span>Alertas oficiales</span><strong id="sc-official">0</strong></div>
         </div>
       </div>
     </section>
 
     <!-- MAPA -->
-    <section id="mapa" class="view">
-      <div class="map-container">
-        <div class="map-controls">
-          <button class="map-btn active" data-layer="quakes">Sismos</button>
-          <button class="map-btn" data-layer="hurricanes">Huracanes</button>
-          <button class="map-btn" data-layer="fires">Incendios</button>
-          <button class="map-btn" data-layer="volcanoes">Volcanes</button>
-          <button class="map-btn" data-layer="storms">Tormentas</button>
+    <section id="map" class="view">
+      <div class="map-wrap">
+        <div class="map-layers">
+          <button class="ml-btn active" data-layer="quakes">Sismos</button>
+          <button class="ml-btn" data-layer="hurricanes">Huracanes</button>
+          <button class="ml-btn" data-layer="fires">Incendios</button>
+          <button class="ml-btn" data-layer="volcanoes">Volcanes</button>
+          <button class="ml-btn" data-layer="storms">Tormentas</button>
+          <button class="ml-btn" data-layer="shelters">Refugios</button>
+          <button class="ml-btn" data-layer="airports">Aeropuertos</button>
         </div>
-        <div class="map-type-selector">
-          <button class="map-type-btn active" data-type="dark">Oscuro</button>
-          <button class="map-type-btn" data-type="osm">Mapa</button>
-          <button class="map-type-btn" data-type="satellite">Satélite</button>
+        <div class="map-types">
+          <button class="mt-btn active" data-type="dark">Oscuro</button>
+          <button class="mt-btn" data-type="osm">Mapa</button>
+          <button class="mt-btn" data-type="sat">Satélite</button>
+          <button class="mt-btn" data-type="radar">Radar lluvia</button>
         </div>
-        <div id="map"></div>
-        <div class="map-legend" id="map-legend"></div>
+        <div id="map-el"></div>
+        <div class="map-legend" id="map-leg"></div>
+      </div>
+    </section>
+
+    <!-- CLIMA -->
+    <section id="weather" class="view">
+      <div class="card">
+        <div class="card-h"><h2>Clima actual detallado</h2></div>
+        <div class="weather-grid">
+          <div class="wg-item"><span class="wg-l">Sensación</span><strong id="w-feels">--</strong></div>
+          <div class="wg-item"><span class="wg-l">Humedad</span><strong id="w-hum">--</strong></div>
+          <div class="wg-item"><span class="wg-l">Viento</span><strong id="w-wind">--</strong></div>
+          <div class="wg-item"><span class="wg-l">Ráfagas</span><strong id="w-gust">--</strong></div>
+          <div class="wg-item"><span class="wg-l">Presión</span><strong id="w-pres">--</strong></div>
+          <div class="wg-item"><span class="wg-l">Visibilidad</span><strong id="w-vis">--</strong></div>
+          <div class="wg-item"><span class="wg-l">Nubosidad</span><strong id="w-cloud">--</strong></div>
+          <div class="wg-item"><span class="wg-l">Punto rocío</span><strong id="w-dew">--</strong></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Índice UV y radiación</h2></div>
+        <div class="uv-box">
+          <div class="uv-val" id="uv-val">--</div>
+          <div class="uv-bar"><div class="uv-fill" id="uv-fill"></div></div>
+          <div class="uv-label" id="uv-label">--</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Calidad del aire detallada</h2></div>
+        <div class="aqi-grid">
+          <div class="aqi-i"><span>PM2.5</span><strong id="a-pm25">--</strong></div>
+          <div class="aqi-i"><span>PM10</span><strong id="a-pm10">--</strong></div>
+          <div class="aqi-i"><span>O₃</span><strong id="a-o3">--</strong></div>
+          <div class="aqi-i"><span>NO₂</span><strong id="a-no2">--</strong></div>
+          <div class="aqi-i"><span>SO₂</span><strong id="a-so2">--</strong></div>
+          <div class="aqi-i"><span>CO</span><strong id="a-co">--</strong></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Clima marítimo (oleaje)</h2></div>
+        <div class="wave-grid">
+          <div class="wg-item"><span class="wg-l">Altura ola</span><strong id="w-wh">--</strong></div>
+          <div class="wg-item"><span class="wg-l">Dirección</span><strong id="w-wd">--</strong></div>
+          <div class="wg-item"><span class="wg-l">Período</span><strong id="w-wp">--</strong></div>
+          <div class="wg-item"><span class="wg-l">Temp. mar</span><strong id="w-wt">--</strong></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Amanecer / Atardecer</h2></div>
+        <div class="sun-box">
+          <div class="sun-i"><span>Salida</span><strong id="w-sunrise">--</strong></div>
+          <div class="sun-i"><span>Puesta</span><strong id="w-sunset">--</strong></div>
+          <div class="sun-i"><span>Duración día</span><strong id="w-daylen">--</strong></div>
+        </div>
       </div>
     </section>
 
     <!-- NOTICIAS -->
-    <section id="noticias" class="view">
-      <div class="news-header">
-        <h2>Noticias de Emergencia</h2>
+    <section id="news" class="view">
+      <div class="news-head">
+        <h2>Noticias y alertas</h2>
         <div class="news-filters">
-          <button class="news-filter active" data-category="all">Todas</button>
-          <button class="news-filter" data-category="earthquake">Sismos</button>
-          <button class="news-filter" data-category="weather">Clima</button>
-          <button class="news-filter" data-category="conflict">Conflictos</button>
+          <button class="nf-btn active" data-cat="all">Todas</button>
+          <button class="nf-btn" data-cat="earthquake">Sismos</button>
+          <button class="nf-btn" data-cat="weather">Clima</button>
+          <button class="nf-btn" data-cat="volcano">Volcanes</button>
+          <button class="nf-btn" data-cat="conflict">Conflictos</button>
+        </div>
+      </div>
+      <div id="news-featured"></div>
+      <div class="news-list" id="news-list"></div>
+    </section>
+
+    <!-- HERRAMIENTAS -->
+    <section id="tools" class="view">
+      <div class="tools-grid">
+        <div class="tool-card" data-tool="compass">
+          <div class="tool-ic">🧭</div>
+          <h3>Brújula</h3>
+          <p>Dirección y orientación</p>
+        </div>
+        <div class="tool-card" data-tool="altimeter">
+          <div class="tool-ic">⛰️</div>
+          <h3>Altímetro</h3>
+          <p>Altitud sobre el mar</p>
+        </div>
+        <div class="tool-card" data-tool="speed">
+          <div class="tool-ic">🏃</div>
+          <h3>Velocímetro</h3>
+          <p>Velocidad GPS en tiempo real</p>
+        </div>
+        <div class="tool-card" data-tool="coords">
+          <div class="tool-ic">📍</div>
+          <h3>Coordenadas</h3>
+          <p>Lat/Lon y formato DMS</p>
+        </div>
+        <div class="tool-card" data-tool="share">
+          <div class="tool-ic">📤</div>
+          <h3>Compartir ubicación</h3>
+          <p>Enviar posición de emergencia</p>
+        </div>
+        <div class="tool-card" data-tool="flashlight">
+          <div class="tool-ic">🔦</div>
+          <h3>Linterna</h3>
+          <p>Encender flash del dispositivo</p>
+        </div>
+        <div class="tool-card" data-tool="firstaid">
+          <div class="tool-ic">🩹</div>
+          <h3>Primeros auxilios</h3>
+          <p>Guía de emergencias médicas</p>
+        </div>
+        <div class="tool-card" data-tool="embassies">
+          <div class="tool-ic">🏛️</div>
+          <h3>Embajadas</h3>
+          <p>Contactos diplomáticos</p>
         </div>
       </div>
 
-      <div class="news-featured" id="news-featured"></div>
-
-      <div class="news-list" id="news-list"></div>
-
-      <button id="btn-load-more-news" class="btn-load-more">Cargar más noticias</button>
-    </section>
-
-    <!-- ALERTAS OFICIALES -->
-    <section id="alertas" class="view">
-      <div class="section-header-large">
-        <h2>Alertas Oficiales</h2>
-        <p class="section-subtitle">Comunicados de protección civil y gobiernos</p>
+      <!-- Brújula -->
+      <div class="tool-view hidden" id="tool-compass">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Brújula</h2>
+        <div class="compass">
+          <div class="compass-ring" id="compass-ring">
+            <div class="compass-n">N</div>
+            <div class="compass-e">E</div>
+            <div class="compass-s">S</div>
+            <div class="compass-w">O</div>
+            <div class="compass-arrow"></div>
+          </div>
+          <div class="compass-deg" id="compass-deg">0°</div>
+          <div class="compass-dir" id="compass-dir">Norte</div>
+        </div>
       </div>
 
-      <div class="official-alerts-list" id="official-alerts-list"></div>
+      <!-- Altímetro -->
+      <div class="tool-view hidden" id="tool-altimeter">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Altímetro</h2>
+        <div class="alt-box">
+          <div class="alt-val" id="alt-val">--</div>
+          <div class="alt-unit">metros</div>
+          <div class="alt-sub" id="alt-sub">Esperando GPS...</div>
+        </div>
+      </div>
+
+      <!-- Velocímetro -->
+      <div class="tool-view hidden" id="tool-speed">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Velocímetro GPS</h2>
+        <div class="speed-box">
+          <div class="speed-val" id="speed-val">0</div>
+          <div class="speed-unit">km/h</div>
+          <div class="speed-sub" id="speed-sub">Esperando movimiento...</div>
+        </div>
+      </div>
+
+      <!-- Coordenadas -->
+      <div class="tool-view hidden" id="tool-coords">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Coordenadas</h2>
+        <div class="coords-box">
+          <div class="coord-row"><span>Decimal</span><strong id="c-dec">--</strong></div>
+          <div class="coord-row"><span>DMS</span><strong id="c-dms">--</strong></div>
+          <div class="coord-row"><span>Plus Code</span><strong id="c-plus">--</strong></div>
+          <div class="coord-row"><span>UTM</span><strong id="c-utm">--</strong></div>
+          <button id="btn-copy-coords" class="btn-p">Copiar coordenadas</button>
+        </div>
+      </div>
+
+      <!-- Compartir -->
+      <div class="tool-view hidden" id="tool-share">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Compartir ubicación</h2>
+        <div class="share-box">
+          <p>Comparte tu ubicación exacta en caso de emergencia</p>
+          <div class="share-link" id="share-link">--</div>
+          <button id="btn-copy-link" class="btn-p">Copiar enlace</button>
+          <button id="btn-share-native" class="btn-s">Compartir por app</button>
+        </div>
+      </div>
+
+      <!-- Linterna -->
+      <div class="tool-view hidden" id="tool-flashlight">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Linterna</h2>
+        <div class="flash-box">
+          <button id="btn-flash" class="flash-btn">ENCENDER</button>
+          <p id="flash-status">Linterna apagada</p>
+        </div>
+      </div>
+
+      <!-- Primeros auxilios -->
+      <div class="tool-view hidden" id="tool-firstaid">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Primeros auxilios</h2>
+        <div class="aid-list">
+          <details><summary>RCP (Reanimación)</summary><p>30 compresiones torácicas + 2 ventilaciones. Repetir hasta que llegue ayuda. Centro del pecho, 5-6 cm de profundidad.</p></details>
+          <details><summary>Hemorragia</summary><p>Presión directa con tela limpia. Elevar la zona afectada. No retirar el objeto si está clavado.</p></details>
+          <details><summary>Quemaduras</summary><p>Enfriar con agua corriente 10-20 min. No aplicar hielo ni pomadas. Cubrir con tela limpia.</p></details>
+          <details><summary>Fracturas</summary><p>No mover al lesionado. Inmovilizar la zona. Aplicar hielo envuelto. Llamar emergencias.</p></details>
+          <details><summary>Atragantamiento</summary><p>Maniobra de Heimlich: puño sobre ombligo, presionar hacia arriba y adentro. 5 veces.</p></details>
+          <details><summary>Shock eléctrico</summary><p>No tocar a la persona si sigue en contacto. Cortar corriente. Llamar emergencias. Si no respira, iniciar RCP.</p></details>
+          <details><summary>Intoxicación</summary><p>No provocar vómito. Llamar a centro de toxicología. Tener a mano el envase del producto.</p></details>
+          <details><summary>Ataque cardíaco</summary><p>LLamar emergencias. Aspirina si no es alérgico. Posición semi-sentado. RCP si pierde conciencia.</p></details>
+        </div>
+      </div>
+
+      <!-- Embajadas -->
+      <div class="tool-view hidden" id="tool-embassies">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Embajadas y consulados</h2>
+        <div class="emb-list" id="emb-list"></div>
+      </div>
     </section>
 
     <!-- AJUSTES -->
-    <section id="ajustes" class="view">
-      <div class="settings-header">
-        <h2>Configuración</h2>
-      </div>
-
-      <div class="settings-section">
-        <h3>Alertas</h3>
-        <div class="settings-group">
-          <label class="setting-item">
-            <div class="setting-info">
-              <span class="setting-title">Magnitud mínima</span>
-              <span class="setting-desc">Alertar desde esta magnitud</span>
-            </div>
-            <select id="cfg-magnitude" class="select">
-              <option value="3.0">M 3.0+</option>
-              <option value="4.0">M 4.0+</option>
+    <section id="settings" class="view">
+      <div class="card">
+        <div class="card-h"><h2>Alertas sísmicas</h2></div>
+        <div class="set-group">
+          <label class="set-item">
+            <div><span class="set-t">Magnitud mínima</span><span class="set-d">Alertar desde</span></div>
+            <select id="c-mag" class="sel">
+              <option value="3">M 3.0+</option>
+              <option value="4">M 4.0+</option>
               <option value="4.5" selected>M 4.5+</option>
-              <option value="5.0">M 5.0+</option>
-              <option value="6.0">M 6.0+</option>
+              <option value="5">M 5.0+</option>
+              <option value="6">M 6.0+</option>
             </select>
           </label>
-          <label class="setting-item">
-            <div class="setting-info">
-              <span class="setting-title">Distancia máxima</span>
-              <span class="setting-desc">Radio de alerta</span>
-            </div>
-            <select id="cfg-distance" class="select">
+          <label class="set-item">
+            <div><span class="set-t">Distancia máxima</span><span class="set-d">Radio de alerta</span></div>
+            <select id="c-dist" class="sel">
               <option value="100">100 km</option>
               <option value="250">250 km</option>
               <option value="500" selected>500 km</option>
               <option value="1000">1000 km</option>
+              <option value="2000">2000 km</option>
             </select>
           </label>
-          <label class="setting-item toggle-item">
-            <div class="setting-info">
-              <span class="setting-title">Sirena de emergencia</span>
-              <span class="setting-desc">Sonido en alertas críticas</span>
-            </div>
-            <input type="checkbox" id="cfg-sound" class="toggle" checked />
+          <label class="set-item">
+            <div><span class="set-t">Sirena</span><span class="set-d">Sonido en alertas</span></div>
+            <input type="checkbox" id="c-sound" class="tog" checked />
           </label>
-          <label class="setting-item toggle-item">
-            <div class="setting-info">
-              <span class="setting-title">Vibración</span>
-              <span class="setting-desc">Vibrar en alertas</span>
-            </div>
-            <input type="checkbox" id="cfg-vibration" class="toggle" checked />
+          <label class="set-item">
+            <div><span class="set-t">Vibración</span><span class="set-d">Vibrar en alertas</span></div>
+            <input type="checkbox" id="c-vib" class="tog" checked />
           </label>
-          <label class="setting-item toggle-item">
-            <div class="setting-info">
-              <span class="setting-title">Bloqueo por alerta oficial</span>
-              <span class="setting-desc">Bloquear app en emergencias nacionales</span>
-            </div>
-            <input type="checkbox" id="cfg-lock" class="toggle" checked />
+          <label class="set-item">
+            <div><span class="set-t">Bloqueo oficial</span><span class="set-d">Bloquear app en emergencias nacionales</span></div>
+            <input type="checkbox" id="c-lock" class="tog" checked />
           </label>
         </div>
       </div>
 
-      <div class="settings-section">
-        <h3>Notificaciones</h3>
-        <div class="settings-group">
-          <button id="btn-test-notif" class="btn-secondary full-width">
-            <span>Probar notificación</span>
-            <small>Verificar permisos</small>
-          </button>
+      <div class="card">
+        <div class="card-h"><h2>Pruebas</h2></div>
+        <div class="set-group">
+          <button id="t-notif" class="btn-s fw"><span>Probar notificación</span><small>Verificar permisos</small></button>
+          <button id="t-quake" class="btn-d fw"><span>Simular sismo M6.5</span><small>Probar alerta completa</small></button>
+          <button id="t-lock" class="btn-d fw"><span>Simular bloqueo oficial</span><small>Probar pantalla de bloqueo</small></button>
+          <button id="t-siren" class="btn-s fw"><span>Probar sirena 5s</span><small>Escuchar sonido</small></button>
+          <button id="t-map" class="btn-p fw"><span>Recargar mapa</span><small>Si no se ve bien</small></button>
         </div>
       </div>
 
-      <div class="settings-section">
-        <h3>Zona de Pruebas</h3>
-        <div class="settings-group">
-          <button id="btn-test-quake" class="btn-danger full-width">
-            <span>Simular sismo M6.5</span>
-            <small>Probar alerta completa</small>
-          </button>
-          <button id="btn-test-official" class="btn-danger full-width">
-            <span>Simular alerta oficial</span>
-            <small>Probar bloqueo de app</small>
-          </button>
-          <button id="btn-test-siren" class="btn-secondary full-width">
-            <span>Probar sirena</span>
-            <small>5 segundos de sonido</small>
-          </button>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h3>General</h3>
-        <div class="settings-group">
-          <label class="setting-item">
-            <div class="setting-info">
-              <span class="setting-title">País</span>
-              <span class="setting-desc">Ubicación predeterminada</span>
-            </div>
-            <select id="cfg-country" class="select">
-              <option value="Mexico">México</option>
-              <option value="Chile">Chile</option>
-              <option value="Peru">Perú</option>
-              <option value="Argentina">Argentina</option>
-              <option value="Colombia">Colombia</option>
-              <option value="Espana">España</option>
-              <option value="Japon">Japón</option>
+      <div class="card">
+        <div class="card-h"><h2>General</h2></div>
+        <div class="set-group">
+          <label class="set-item">
+            <div><span class="set-t">Unidades</span><span class="set-d">Sistema de medidas</span></div>
+            <select id="c-units" class="sel">
+              <option value="metric">Métrico (°C, km)</option>
+              <option value="imperial">Imperial (°F, mi)</option>
             </select>
           </label>
-          <button id="btn-save-config" class="btn-primary full-width">Guardar configuración</button>
+          <label class="set-item">
+            <div><span class="set-t">Idioma</span><span class="set-d">Idioma de la app</span></div>
+            <select id="c-lang" class="sel">
+              <option value="es">Español</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <button id="btn-save" class="btn-p fw">Guardar configuración</button>
+          <button id="btn-reset" class="btn-s fw"><span>Restablecer todo</span><small>Borrar datos guardados</small></button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Acerca de</h2></div>
+        <div class="about">
+          <p><strong>GlobalAlerts Pro</strong> v2.0</p>
+          <p>Sistema profesional de alertas y emergencias</p>
+          <p class="small">Datos: USGS, Open-Meteo, NASA EONET, NOAA, OpenStreetMap</p>
         </div>
       </div>
     </section>
   </main>
-
-  <!-- NAVEGACIÓN INFERIOR (Móvil) -->
-  <nav class="bottom-nav">
-    <button class="nav-btn active" data-view="dashboard">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-      <span>Inicio</span>
-    </button>
-    <button class="nav-btn" data-view="mapa">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
-        <line x1="8" y1="2" x2="8" y2="18"/>
-        <line x1="16" y1="6" x2="16" y2="22"/>
-      </svg>
-      <span>Mapa</span>
-    </button>
-    <button class="nav-btn" data-view="noticias">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
-        <path d="M18 14h-8"/>
-        <path d="M15 18h-5"/>
-        <path d="M10 6h8v4h-8V6z"/>
-      </svg>
-      <span>Noticias</span>
-    </button>
-    <button class="nav-btn" data-view="alertas">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/>
-        <line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-      <span>Alertas</span>
-    </button>
-    <button class="nav-btn" data-view="ajustes">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-      <span>Ajustes</span>
-    </button>
-  </nav>
 
   <div id="toast" class="toast"></div>
 
