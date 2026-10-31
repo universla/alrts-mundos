@@ -2,23 +2,24 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#0a0e1a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="description" content="Sistema profesional de alertas y emergencias globales" />
-  <title>GlobalAlerts Pro</title>
+  <title>GlobalAlerts Pro Ultimate</title>
 
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/icon-192.svg" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- OVERLAY DE BLOQUEO OFICIAL -->
+  <!-- OVERLAY BLOQUEO OFICIAL -->
   <div id="official-lock" class="official-lock hidden">
     <div class="lock-bg"></div>
     <div class="lock-box">
@@ -84,7 +85,7 @@
       <div class="logo"></div>
       <div>
         <h1>GlobalAlerts</h1>
-        <span class="ver">PRO</span>
+        <span class="ver">ULTIMATE</span>
       </div>
     </div>
     <div class="top-right">
@@ -101,9 +102,9 @@
   <nav class="tabs">
     <button class="tab active" data-tab="home">Inicio</button>
     <button class="tab" data-tab="map">Mapa</button>
-    <button class="tab" data-tab="weather">Clima</button>
-    <button class="tab" data-tab="news">Noticias</button>
     <button class="tab" data-tab="tools">Herramientas</button>
+    <button class="tab" data-tab="space">Espacio</button>
+    <button class="tab" data-tab="survival">Supervivencia</button>
     <button class="tab" data-tab="settings">Ajustes</button>
   </nav>
 
@@ -162,13 +163,39 @@
       </div>
 
       <div class="card">
-        <div class="card-h"><h2>Pronóstico 7 días</h2></div>
-        <div class="forecast" id="forecast"></div>
+        <div class="card-h"><h2>Actividad Solar</h2></div>
+        <div class="solar-box">
+          <div class="solar-item"><span>Kp Index</span><strong id="solar-kp">--</strong></div>
+          <div class="solar-item"><span>Viento Solar</span><strong id="solar-wind">--</strong></div>
+          <div class="solar-item"><span>Flujo Radio</span><strong id="solar-flux">--</strong></div>
+        </div>
       </div>
 
       <div class="card">
-        <div class="card-h"><h2>Por hora (24h)</h2></div>
-        <div class="hourly" id="hourly"></div>
+        <div class="card-h"><h2>Fase Lunar</h2></div>
+        <div class="moon-box">
+          <div class="moon-icon" id="moon-icon">🌕</div>
+          <div class="moon-info">
+            <div id="moon-phase">--</div>
+            <div class="moon-illum" id="moon-illum">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Estación Espacial (ISS)</h2></div>
+        <div class="iss-box">
+          <div class="iss-pos">
+            <div>Lat: <strong id="iss-lat">--</strong></div>
+            <div>Lon: <strong id="iss-lon">--</strong></div>
+          </div>
+          <div class="iss-vis" id="iss-vis">--</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Pronóstico 7 días</h2></div>
+        <div class="forecast" id="forecast"></div>
       </div>
 
       <div class="card status-card">
@@ -179,105 +206,63 @@
         <div class="sc-body">
           <div><span>Última revisión</span><strong id="sc-time">--</strong></div>
           <div><span>Sismos monitoreados</span><strong id="sc-n">0</strong></div>
-          <div><span>Alertas oficiales</span><strong id="sc-official">0</strong></div>
+          <div><span>Capas activas</span><strong id="sc-layers">0</strong></div>
         </div>
       </div>
     </section>
 
-    <!-- MAPA -->
+    <!-- MAPA MULTI-CAPA -->
     <section id="map" class="view">
       <div class="map-wrap">
-        <div class="map-layers">
-          <button class="ml-btn active" data-layer="quakes">Sismos</button>
-          <button class="ml-btn" data-layer="hurricanes">Huracanes</button>
-          <button class="ml-btn" data-layer="fires">Incendios</button>
-          <button class="ml-btn" data-layer="volcanoes">Volcanes</button>
-          <button class="ml-btn" data-layer="storms">Tormentas</button>
-          <button class="ml-btn" data-layer="shelters">Refugios</button>
-          <button class="ml-btn" data-layer="airports">Aeropuertos</button>
+        <div class="map-controls-box">
+          <h3>Capas del mapa</h3>
+          <div class="layer-toggles">
+            <label class="layer-toggle">
+              <input type="checkbox" id="layer-quakes" checked />
+              <span>Sismos</span>
+            </label>
+            <label class="layer-toggle">
+              <input type="checkbox" id="layer-hurricanes" checked />
+              <span>Huracanes</span>
+            </label>
+            <label class="layer-toggle">
+              <input type="checkbox" id="layer-fires" checked />
+              <span>Incendios</span>
+            </label>
+            <label class="layer-toggle">
+              <input type="checkbox" id="layer-volcanoes" checked />
+              <span>Volcanes</span>
+            </label>
+            <label class="layer-toggle">
+              <input type="checkbox" id="layer-storms" checked />
+              <span>Tormentas</span>
+            </label>
+            <label class="layer-toggle">
+              <input type="checkbox" id="layer-radar" />
+              <span>Radar lluvia</span>
+            </label>
+            <label class="layer-toggle">
+              <input type="checkbox" id="layer-shelters" />
+              <span>Refugios</span>
+            </label>
+            <label class="layer-toggle">
+              <input type="checkbox" id="layer-airports" />
+              <span>Aeropuertos</span>
+            </label>
+            <label class="layer-toggle">
+              <input type="checkbox" id="layer-iss" />
+              <span>ISS en vivo</span>
+            </label>
+          </div>
         </div>
         <div class="map-types">
           <button class="mt-btn active" data-type="dark">Oscuro</button>
           <button class="mt-btn" data-type="osm">Mapa</button>
           <button class="mt-btn" data-type="sat">Satélite</button>
-          <button class="mt-btn" data-type="radar">Radar lluvia</button>
         </div>
         <div id="map-el"></div>
         <div class="map-legend" id="map-leg"></div>
       </div>
-    </section>
-
-    <!-- CLIMA -->
-    <section id="weather" class="view">
-      <div class="card">
-        <div class="card-h"><h2>Clima actual detallado</h2></div>
-        <div class="weather-grid">
-          <div class="wg-item"><span class="wg-l">Sensación</span><strong id="w-feels">--</strong></div>
-          <div class="wg-item"><span class="wg-l">Humedad</span><strong id="w-hum">--</strong></div>
-          <div class="wg-item"><span class="wg-l">Viento</span><strong id="w-wind">--</strong></div>
-          <div class="wg-item"><span class="wg-l">Ráfagas</span><strong id="w-gust">--</strong></div>
-          <div class="wg-item"><span class="wg-l">Presión</span><strong id="w-pres">--</strong></div>
-          <div class="wg-item"><span class="wg-l">Visibilidad</span><strong id="w-vis">--</strong></div>
-          <div class="wg-item"><span class="wg-l">Nubosidad</span><strong id="w-cloud">--</strong></div>
-          <div class="wg-item"><span class="wg-l">Punto rocío</span><strong id="w-dew">--</strong></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-h"><h2>Índice UV y radiación</h2></div>
-        <div class="uv-box">
-          <div class="uv-val" id="uv-val">--</div>
-          <div class="uv-bar"><div class="uv-fill" id="uv-fill"></div></div>
-          <div class="uv-label" id="uv-label">--</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-h"><h2>Calidad del aire detallada</h2></div>
-        <div class="aqi-grid">
-          <div class="aqi-i"><span>PM2.5</span><strong id="a-pm25">--</strong></div>
-          <div class="aqi-i"><span>PM10</span><strong id="a-pm10">--</strong></div>
-          <div class="aqi-i"><span>O₃</span><strong id="a-o3">--</strong></div>
-          <div class="aqi-i"><span>NO₂</span><strong id="a-no2">--</strong></div>
-          <div class="aqi-i"><span>SO₂</span><strong id="a-so2">--</strong></div>
-          <div class="aqi-i"><span>CO</span><strong id="a-co">--</strong></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-h"><h2>Clima marítimo (oleaje)</h2></div>
-        <div class="wave-grid">
-          <div class="wg-item"><span class="wg-l">Altura ola</span><strong id="w-wh">--</strong></div>
-          <div class="wg-item"><span class="wg-l">Dirección</span><strong id="w-wd">--</strong></div>
-          <div class="wg-item"><span class="wg-l">Período</span><strong id="w-wp">--</strong></div>
-          <div class="wg-item"><span class="wg-l">Temp. mar</span><strong id="w-wt">--</strong></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-h"><h2>Amanecer / Atardecer</h2></div>
-        <div class="sun-box">
-          <div class="sun-i"><span>Salida</span><strong id="w-sunrise">--</strong></div>
-          <div class="sun-i"><span>Puesta</span><strong id="w-sunset">--</strong></div>
-          <div class="sun-i"><span>Duración día</span><strong id="w-daylen">--</strong></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- NOTICIAS -->
-    <section id="news" class="view">
-      <div class="news-head">
-        <h2>Noticias y alertas</h2>
-        <div class="news-filters">
-          <button class="nf-btn active" data-cat="all">Todas</button>
-          <button class="nf-btn" data-cat="earthquake">Sismos</button>
-          <button class="nf-btn" data-cat="weather">Clima</button>
-          <button class="nf-btn" data-cat="volcano">Volcanes</button>
-          <button class="nf-btn" data-cat="conflict">Conflictos</button>
-        </div>
-      </div>
-      <div id="news-featured"></div>
-      <div class="news-list" id="news-list"></div>
     </section>
 
     <!-- HERRAMIENTAS -->
@@ -286,42 +271,62 @@
         <div class="tool-card" data-tool="compass">
           <div class="tool-ic">🧭</div>
           <h3>Brújula</h3>
-          <p>Dirección y orientación</p>
+          <p>Dirección real</p>
         </div>
         <div class="tool-card" data-tool="altimeter">
           <div class="tool-ic">⛰️</div>
           <h3>Altímetro</h3>
-          <p>Altitud sobre el mar</p>
+          <p>Altitud GPS</p>
         </div>
         <div class="tool-card" data-tool="speed">
           <div class="tool-ic">🏃</div>
           <h3>Velocímetro</h3>
-          <p>Velocidad GPS en tiempo real</p>
+          <p>Velocidad GPS</p>
         </div>
         <div class="tool-card" data-tool="coords">
           <div class="tool-ic">📍</div>
           <h3>Coordenadas</h3>
-          <p>Lat/Lon y formato DMS</p>
+          <p>Lat/Lon/DMS</p>
         </div>
-        <div class="tool-card" data-tool="share">
-          <div class="tool-ic">📤</div>
-          <h3>Compartir ubicación</h3>
-          <p>Enviar posición de emergencia</p>
+        <div class="tool-card" data-tool="noise">
+          <div class="tool-ic">🔊</div>
+          <h3>Medidor de Ruido</h3>
+          <p>Decibeles en tiempo real</p>
+        </div>
+        <div class="tool-card" data-tool="morse">
+          <div class="tool-ic">📡</div>
+          <h3>Código Morse SOS</h3>
+          <p>Señal de auxilio</p>
         </div>
         <div class="tool-card" data-tool="flashlight">
           <div class="tool-ic">🔦</div>
-          <h3>Linterna</h3>
-          <p>Encender flash del dispositivo</p>
+          <h3>Linterna SOS</h3>
+          <p>Flash estroboscópico</p>
+        </div>
+        <div class="tool-card" data-tool="supplies">
+          <div class="tool-ic">🎒</div>
+          <h3>Calculadora Suministros</h3>
+          <p>Agua y comida</p>
+        </div>
+        <div class="tool-card" data-tool="distance">
+          <div class="tool-ic">📏</div>
+          <h3>Distancia a Epicentro</h3>
+          <p>Tiempo de ondas</p>
+        </div>
+        <div class="tool-card" data-tool="converter">
+          <div class="tool-ic">🔄</div>
+          <h3>Conversor</h3>
+          <p>Unidades de emergencia</p>
         </div>
         <div class="tool-card" data-tool="firstaid">
           <div class="tool-ic">🩹</div>
-          <h3>Primeros auxilios</h3>
-          <p>Guía de emergencias médicas</p>
+          <h3>Primeros Auxilios</h3>
+          <p>Guía médica</p>
         </div>
         <div class="tool-card" data-tool="embassies">
           <div class="tool-ic">🏛️</div>
           <h3>Embajadas</h3>
-          <p>Contactos diplomáticos</p>
+          <p>Contactos</p>
         </div>
       </div>
 
@@ -371,55 +376,252 @@
         <div class="coords-box">
           <div class="coord-row"><span>Decimal</span><strong id="c-dec">--</strong></div>
           <div class="coord-row"><span>DMS</span><strong id="c-dms">--</strong></div>
-          <div class="coord-row"><span>Plus Code</span><strong id="c-plus">--</strong></div>
-          <div class="coord-row"><span>UTM</span><strong id="c-utm">--</strong></div>
-          <button id="btn-copy-coords" class="btn-p">Copiar coordenadas</button>
+          <div class="coord-row"><span>UTM Zona</span><strong id="c-utm">--</strong></div>
+          <button id="btn-copy-coords" class="btn-p">Copiar</button>
         </div>
       </div>
 
-      <!-- Compartir -->
-      <div class="tool-view hidden" id="tool-share">
+      <!-- Medidor de Ruido -->
+      <div class="tool-view hidden" id="tool-noise">
         <button class="back-btn" data-back>← Volver</button>
-        <h2>Compartir ubicación</h2>
-        <div class="share-box">
-          <p>Comparte tu ubicación exacta en caso de emergencia</p>
-          <div class="share-link" id="share-link">--</div>
-          <button id="btn-copy-link" class="btn-p">Copiar enlace</button>
-          <button id="btn-share-native" class="btn-s">Compartir por app</button>
+        <h2>Medidor de Ruido Ambiental</h2>
+        <div class="noise-box">
+          <div class="noise-val" id="noise-val">--</div>
+          <div class="noise-unit">dB</div>
+          <div class="noise-bar"><div class="noise-fill" id="noise-fill"></div></div>
+          <div class="noise-label" id="noise-label">Presiona iniciar</div>
+          <button id="btn-noise-start" class="btn-p">INICIAR MEDICIÓN</button>
         </div>
       </div>
 
-      <!-- Linterna -->
+      <!-- Código Morse -->
+      <div class="tool-view hidden" id="tool-morse">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Código Morse SOS</h2>
+        <div class="morse-box">
+          <div class="morse-signal" id="morse-signal">...</div>
+          <div class="morse-text">SOS = · · · − − − · · ·</div>
+          <button id="btn-morse-start" class="btn-p">ENVIAR SOS</button>
+          <button id="btn-morse-stop" class="btn-s">DETENER</button>
+        </div>
+      </div>
+
+      <!-- Linterna SOS -->
       <div class="tool-view hidden" id="tool-flashlight">
         <button class="back-btn" data-back>← Volver</button>
-        <h2>Linterna</h2>
+        <h2>Linterna Modo SOS</h2>
         <div class="flash-box">
-          <button id="btn-flash" class="flash-btn">ENCENDER</button>
+          <button id="btn-flash" class="flash-btn">ENCENDER SOS</button>
           <p id="flash-status">Linterna apagada</p>
         </div>
       </div>
 
-      <!-- Primeros auxilios -->
+      <!-- Calculadora Suministros -->
+      <div class="tool-view hidden" id="tool-supplies">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Calculadora de Suministros</h2>
+        <div class="supplies-box">
+          <label>Personas: <input type="number" id="sup-people" value="4" min="1" /></label>
+          <label>Días: <input type="number" id="sup-days" value="3" min="1" /></label>
+          <div class="supplies-result">
+            <div class="sup-item"><span>Agua (4L/día)</span><strong id="sup-water">--</strong></div>
+            <div class="sup-item"><span>Comida (2kg/día)</span><strong id="sup-food">--</strong></div>
+            <div class="sup-item"><span>Medicamentos</span><strong>Básico</strong></div>
+            <div class="sup-item"><span>Baterías</span><strong id="sup-batt">--</strong></div>
+          </div>
+          <button id="btn-calc-sup" class="btn-p">CALCULAR</button>
+        </div>
+      </div>
+
+      <!-- Distancia a Epicentro -->
+      <div class="tool-view hidden" id="tool-distance">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Distancia a Epicentro</h2>
+        <div class="dist-box">
+          <label>Lat epicentro: <input type="number" id="dist-lat" step="0.0001" /></label>
+          <label>Lon epicentro: <input type="number" id="dist-lon" step="0.0001" /></label>
+          <div class="dist-result">
+            <div class="dist-item"><span>Distancia</span><strong id="dist-result">--</strong></div>
+            <div class="dist-item"><span>Ondas P (6 km/s)</span><strong id="dist-p">--</strong></div>
+            <div class="dist-item"><span>Ondas S (3.5 km/s)</span><strong id="dist-s">--</strong></div>
+            <div class="dist-item"><span>Diferencia</span><strong id="dist-diff">--</strong></div>
+          </div>
+          <button id="btn-calc-dist" class="btn-p">CALCULAR</button>
+        </div>
+      </div>
+
+      <!-- Conversor -->
+      <div class="tool-view hidden" id="tool-converter">
+        <button class="back-btn" data-back>← Volver</button>
+        <h2>Conversor de Unidades</h2>
+        <div class="conv-box">
+          <label>Tipo:
+            <select id="conv-type">
+              <option value="temp">Temperatura</option>
+              <option value="dist">Distancia</option>
+              <option value="pressure">Presión</option>
+            </select>
+          </label>
+          <label>Valor: <input type="number" id="conv-val" step="0.01" /></label>
+          <div class="conv-result" id="conv-result">--</div>
+          <button id="btn-convert" class="btn-p">CONVERTIR</button>
+        </div>
+      </div>
+
+      <!-- Primeros Auxilios -->
       <div class="tool-view hidden" id="tool-firstaid">
         <button class="back-btn" data-back>← Volver</button>
-        <h2>Primeros auxilios</h2>
+        <h2>Primeros Auxilios</h2>
         <div class="aid-list">
-          <details><summary>RCP (Reanimación)</summary><p>30 compresiones torácicas + 2 ventilaciones. Repetir hasta que llegue ayuda. Centro del pecho, 5-6 cm de profundidad.</p></details>
-          <details><summary>Hemorragia</summary><p>Presión directa con tela limpia. Elevar la zona afectada. No retirar el objeto si está clavado.</p></details>
-          <details><summary>Quemaduras</summary><p>Enfriar con agua corriente 10-20 min. No aplicar hielo ni pomadas. Cubrir con tela limpia.</p></details>
-          <details><summary>Fracturas</summary><p>No mover al lesionado. Inmovilizar la zona. Aplicar hielo envuelto. Llamar emergencias.</p></details>
-          <details><summary>Atragantamiento</summary><p>Maniobra de Heimlich: puño sobre ombligo, presionar hacia arriba y adentro. 5 veces.</p></details>
-          <details><summary>Shock eléctrico</summary><p>No tocar a la persona si sigue en contacto. Cortar corriente. Llamar emergencias. Si no respira, iniciar RCP.</p></details>
-          <details><summary>Intoxicación</summary><p>No provocar vómito. Llamar a centro de toxicología. Tener a mano el envase del producto.</p></details>
-          <details><summary>Ataque cardíaco</summary><p>LLamar emergencias. Aspirina si no es alérgico. Posición semi-sentado. RCP si pierde conciencia.</p></details>
+          <details><summary>RCP (Reanimación)</summary><p>30 compresiones + 2 ventilaciones. Centro del pecho, 5-6 cm profundidad. 100-120 compresiones/min.</p></details>
+          <details><summary>Hemorragia</summary><p>Presión directa con tela limpia. Elevar zona. No retirar objeto clavado.</p></details>
+          <details><summary>Quemaduras</summary><p>Enfriar con agua 10-20 min. No hielo. Cubrir con tela limpia estéril.</p></details>
+          <details><summary>Fracturas</summary><p>No mover. Inmovilizar. Hielo envuelto. Llamar emergencias.</p></details>
+          <details><summary>Atragantamiento</summary><p>Heimlich: puño sobre ombligo, 5 presiones hacia arriba.</p></details>
+          <details><summary>Shock</summary><p>Acostar, elevar piernas 30cm. Mantener caliente. No dar nada de beber.</p></details>
+          <details><summary>Intoxicación</summary><p>No provocar vómito. Llamar toxicología. Tener envase del producto.</p></details>
+          <details><summary>Ataque cardíaco</summary><p>Llamar emergencias. Aspirina 300mg si no alérgico. RCP si inconsciente.</p></details>
         </div>
       </div>
 
       <!-- Embajadas -->
       <div class="tool-view hidden" id="tool-embassies">
         <button class="back-btn" data-back>← Volver</button>
-        <h2>Embajadas y consulados</h2>
+        <h2>Embajadas</h2>
         <div class="emb-list" id="emb-list"></div>
+      </div>
+    </section>
+
+    <!-- ESPACIO -->
+    <section id="space" class="view">
+      <div class="card">
+        <div class="card-h"><h2>Estación Espacial Internacional</h2></div>
+        <div class="iss-detail">
+          <div class="iss-map" id="iss-map"></div>
+          <div class="iss-info">
+            <div>Latitud: <strong id="iss-lat2">--</strong></div>
+            <div>Longitud: <strong id="iss-lon2">--</strong></div>
+            <div>Velocidad: <strong>27,600 km/h</strong></div>
+            <div>Altitud: <strong>408 km</strong></div>
+            <div>Visibilidad: <strong id="iss-vis2">--</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Clima Espacial</h2></div>
+        <div class="space-weather">
+          <div class="sw-item">
+            <span>Kp Index</span>
+            <strong id="sw-kp">--</strong>
+            <small>0-9 (tormenta geomagnética)</small>
+          </div>
+          <div class="sw-item">
+            <span>Viento Solar</span>
+            <strong id="sw-wind">--</strong>
+            <small>km/s</small>
+          </div>
+          <div class="sw-item">
+            <span>Densidad</span>
+            <strong id="sw-density">--</strong>
+            <small>protones/cm³</small>
+          </div>
+          <div class="sw-item">
+            <span>Flujo Radio 10.7cm</span>
+            <strong id="sw-flux">--</strong>
+            <small>sfu</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Fase Lunar</h2></div>
+        <div class="moon-detail">
+          <div class="moon-big" id="moon-big">🌕</div>
+          <div>
+            <div>Fase: <strong id="moon-phase2">--</strong></div>
+            <div>Iluminación: <strong id="moon-illum2">--</strong></div>
+            <div>Edad: <strong id="moon-age">--</strong> días</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Mareas</h2></div>
+        <div class="tide-box">
+          <div class="tide-item">
+            <span>Marea alta</span>
+            <strong id="tide-high">--</strong>
+          </div>
+          <div class="tide-item">
+            <span>Marea baja</span>
+            <strong id="tide-low">--</strong>
+          </div>
+          <div class="tide-item">
+            <span>Próxima marea</span>
+            <strong id="tide-next">--</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SUPERVIVENCIA -->
+    <section id="survival" class="view">
+      <div class="card">
+        <div class="card-h"><h2>Kit de Emergencia - Checklist</h2></div>
+        <div class="checklist" id="survival-checklist">
+          <label class="check-item"><input type="checkbox" data-item="water" /> Agua (4L por persona/día)</label>
+          <label class="check-item"><input type="checkbox" data-item="food" /> Comida no perecedera (3 días)</label>
+          <label class="check-item"><input type="checkbox" data-item="radio" /> Radio a pilas o manivela</label>
+          <label class="check-item"><input type="checkbox" data-item="flashlight" /> Linterna con pilas extra</label>
+          <label class="check-item"><input type="checkbox" data-item="firstaid" /> Botiquín primeros auxilios</label>
+          <label class="check-item"><input type="checkbox" data-item="meds" /> Medicamentos personales</label>
+          <label class="check-item"><input type="checkbox" data-item="docs" /> Copias documentos importantes</label>
+          <label class="check-item"><input type="checkbox" data-item="cash" /> Efectivo billetes pequeños</label>
+          <label class="check-item"><input type="checkbox" data-item="phone" /> Cargador portátil celular</label>
+          <label class="check-item"><input type="checkbox" data-item="clothes" /> Ropa y calzado resistente</label>
+          <label class="check-item"><input type="checkbox" data-item="blanket" /> Manta o saco dormir</label>
+          <label class="check-item"><input type="checkbox" data-item="hygiene" /> Artículos higiene personal</label>
+          <label class="check-item"><input type="checkbox" data-item="tools" /> Herramientas básicas</label>
+          <label class="check-item"><input type="checkbox" data-item="pet" /> Comida/agua mascotas</label>
+          <label class="check-item"><input type="checkbox" data-item="baby" /> Artículos bebés (si aplica)</label>
+        </div>
+        <div class="check-progress">
+          <span>Progreso: <span id="check-count">0</span>/15</span>
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Plan Familiar de Emergencia</h2></div>
+        <div class="plan-box">
+          <label>Punto de reunión: <input type="text" id="plan-meeting" /></label>
+          <label>Contacto emergencia: <input type="text" id="plan-contact" /></label>
+          <label>Ruta evacuación: <textarea id="plan-route"></textarea></label>
+          <button id="btn-save-plan" class="btn-p">GUARDAR PLAN</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Temporizador de Emergencia</h2></div>
+        <div class="timer-box">
+          <div class="timer-display" id="survival-timer">00:00:00</div>
+          <div class="timer-btns">
+            <button id="btn-timer-start" class="btn-p">INICIAR</button>
+            <button id="btn-timer-stop" class="btn-s">DETENER</button>
+            <button id="btn-timer-reset" class="btn-s">REINICIAR</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h2>Números de Emergencia</h2></div>
+        <div class="emergency-nums">
+          <a href="tel:911" class="em-num"><span>911</span><small>General</small></a>
+          <a href="tel:066" class="em-num"><span>066</span><small>Policía</small></a>
+          <a href="tel:065" class="em-num"><span>065</span><small>Cruz Roja</small></a>
+          <a href="tel:068" class="em-num"><span>068</span><small>Protección Civil</small></a>
+        </div>
       </div>
     </section>
 
@@ -457,7 +659,7 @@
             <input type="checkbox" id="c-vib" class="tog" checked />
           </label>
           <label class="set-item">
-            <div><span class="set-t">Bloqueo oficial</span><span class="set-d">Bloquear app en emergencias nacionales</span></div>
+            <div><span class="set-t">Bloqueo oficial</span><span class="set-d">Bloquear app en emergencias</span></div>
             <input type="checkbox" id="c-lock" class="tog" checked />
           </label>
         </div>
@@ -468,7 +670,7 @@
         <div class="set-group">
           <button id="t-notif" class="btn-s fw"><span>Probar notificación</span><small>Verificar permisos</small></button>
           <button id="t-quake" class="btn-d fw"><span>Simular sismo M6.5</span><small>Probar alerta completa</small></button>
-          <button id="t-lock" class="btn-d fw"><span>Simular bloqueo oficial</span><small>Probar pantalla de bloqueo</small></button>
+          <button id="t-lock" class="btn-d fw"><span>Simular bloqueo oficial</span><small>Probar pantalla bloqueo</small></button>
           <button id="t-siren" class="btn-s fw"><span>Probar sirena 5s</span><small>Escuchar sonido</small></button>
           <button id="t-map" class="btn-p fw"><span>Recargar mapa</span><small>Si no se ve bien</small></button>
         </div>
@@ -484,24 +686,17 @@
               <option value="imperial">Imperial (°F, mi)</option>
             </select>
           </label>
-          <label class="set-item">
-            <div><span class="set-t">Idioma</span><span class="set-d">Idioma de la app</span></div>
-            <select id="c-lang" class="sel">
-              <option value="es">Español</option>
-              <option value="en">English</option>
-            </select>
-          </label>
           <button id="btn-save" class="btn-p fw">Guardar configuración</button>
-          <button id="btn-reset" class="btn-s fw"><span>Restablecer todo</span><small>Borrar datos guardados</small></button>
+          <button id="btn-reset" class="btn-s fw"><span>Restablecer todo</span><small>Borrar datos</small></button>
         </div>
       </div>
 
       <div class="card">
         <div class="card-h"><h2>Acerca de</h2></div>
         <div class="about">
-          <p><strong>GlobalAlerts Pro</strong> v2.0</p>
+          <p><strong>GlobalAlerts Pro Ultimate</strong> v3.0</p>
           <p>Sistema profesional de alertas y emergencias</p>
-          <p class="small">Datos: USGS, Open-Meteo, NASA EONET, NOAA, OpenStreetMap</p>
+          <p class="small">Datos: USGS, Open-Meteo, NASA EONET, NOAA, OpenStreetMap, N2YO</p>
         </div>
       </div>
     </section>
@@ -510,6 +705,7 @@
   <div id="toast" class="toast"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
